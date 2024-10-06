@@ -1,0 +1,764 @@
+BEGIN:VCALENDAR
+PRODID:-//github.com/allenporter/ical//8.2.0//EN
+VERSION:2.0
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4be324-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241007T161000
+DTEND;TZID=Europe/Moscow:20241007T174000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4becf2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241014T161000
+DTEND;TZID=Europe/Moscow:20241014T174000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4bfa30-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241007T182000
+DTEND;TZID=Europe/Moscow:20241007T194000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c0a20-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241014T182000
+DTEND;TZID=Europe/Moscow:20241014T194000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c2258-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241021T182000
+DTEND;TZID=Europe/Moscow:20241021T194000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c3414-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241028T182000
+DTEND;TZID=Europe/Moscow:20241028T194000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c5458-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241111T182000
+DTEND;TZID=Europe/Moscow:20241111T194000
+SUMMARY:История России • Webinar • Азаматова Гульназ Булатовна 
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c65ec-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241118T182000
+DTEND;TZID=Europe/Moscow:20241118T194000
+SUMMARY:История России • Webinar • Азаматова Гульназ Булатовна 
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c764a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241125T182000
+DTEND;TZID=Europe/Moscow:20241125T194000
+SUMMARY:История России • Webinar • Азаматова Гульназ Булатовна 
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4c863a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241202T182000
+DTEND;TZID=Europe/Moscow:20241202T194000
+SUMMARY:История России • Webinar • Азаматова Гульназ Булатовна 
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4cb0ba-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241209T182000
+DTEND;TZID=Europe/Moscow:20241209T194000
+SUMMARY:Цифровая грамотность 
+ https://online.mospolytech.ru/course/view.php?id=10358 • Online курс • 
+ Меньшикова Наталия Павловна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4cbf4c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241216T182000
+DTEND;TZID=Europe/Moscow:20241216T194000
+SUMMARY:Цифровая грамотность • Online курс • Меньшикова Наталия Павловна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4cd978-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241007T195000
+DTEND;TZID=Europe/Moscow:20241007T211000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ce206-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241014T195000
+DTEND;TZID=Europe/Moscow:20241014T211000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4cf4a8-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241021T195000
+DTEND;TZID=Europe/Moscow:20241021T211000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4cfcbe-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241028T195000
+DTEND;TZID=Europe/Moscow:20241028T211000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d0916-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241111T195000
+DTEND;TZID=Europe/Moscow:20241111T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d10f0-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241118T195000
+DTEND;TZID=Europe/Moscow:20241118T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d1938-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241125T195000
+DTEND;TZID=Europe/Moscow:20241125T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d216c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241202T195000
+DTEND;TZID=Europe/Moscow:20241202T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d2dba-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241209T195000
+DTEND;TZID=Europe/Moscow:20241209T211000
+SUMMARY:Цифровая грамотность 
+ https://online.mospolytech.ru/course/view.php?id=10358 • Online курс • 
+ Меньшикова Наталия Павловна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d3b34-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241216T195000
+DTEND;TZID=Europe/Moscow:20241216T211000
+SUMMARY:Цифровая грамотность • Online курс • Меньшикова Наталия Павловна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d4be2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241001T182000
+DTEND;TZID=Europe/Moscow:20241001T194000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d5ae2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241008T182000
+DTEND;TZID=Europe/Moscow:20241008T194000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d632a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241015T182000
+DTEND;TZID=Europe/Moscow:20241015T194000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d6b68-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241022T182000
+DTEND;TZID=Europe/Moscow:20241022T194000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d7a68-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241029T182000
+DTEND;TZID=Europe/Moscow:20241029T194000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d8206-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241105T182000
+DTEND;TZID=Europe/Moscow:20241105T194000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4d8bf2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241112T182000
+DTEND;TZID=Europe/Moscow:20241112T194000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4da5ec-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241119T182000
+DTEND;TZID=Europe/Moscow:20241119T194000
+SUMMARY:Физическая культура и спорт • СДО (LMS) • Бодакин Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4dae48-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241126T182000
+DTEND;TZID=Europe/Moscow:20241126T194000
+SUMMARY:Физическая культура и спорт • СДО (LMS) • Бодакин Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4dbd48-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241001T195000
+DTEND;TZID=Europe/Moscow:20241001T211000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4dcbd0-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241008T195000
+DTEND;TZID=Europe/Moscow:20241008T211000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4dd7e2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241015T195000
+DTEND;TZID=Europe/Moscow:20241015T211000
+SUMMARY:Линейная алгебра • СДО (LMS) • Богданов Михаил Рифкатович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4deafc-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241029T195000
+DTEND;TZID=Europe/Moscow:20241029T211000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4df628-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241105T195000
+DTEND;TZID=Europe/Moscow:20241105T211000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e0000-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241112T195000
+DTEND;TZID=Europe/Moscow:20241112T211000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e1360-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241119T195000
+DTEND;TZID=Europe/Moscow:20241119T211000
+SUMMARY:Физическая культура и спорт • СДО (LMS) • Бодакин Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e1d1a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241126T195000
+DTEND;TZID=Europe/Moscow:20241126T211000
+SUMMARY:Физическая культура и спорт • СДО (LMS) • Бодакин Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e30ac-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241023T182000
+DTEND;TZID=Europe/Moscow:20241023T194000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e3b56-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241030T182000
+DTEND;TZID=Europe/Moscow:20241030T194000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e4646-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241106T182000
+DTEND;TZID=Europe/Moscow:20241106T194000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e54c4-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241113T182000
+DTEND;TZID=Europe/Moscow:20241113T194000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e5ee2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241120T182000
+DTEND;TZID=Europe/Moscow:20241120T194000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e693c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241127T182000
+DTEND;TZID=Europe/Moscow:20241127T194000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e85fc-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241211T182000
+DTEND;TZID=Europe/Moscow:20241211T194000
+SUMMARY:Введение в проектную деятельность • СДО (LMS) • Шелыгов Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e8f98-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241218T182000
+DTEND;TZID=Europe/Moscow:20241218T194000
+SUMMARY:Введение в проектную деятельность • СДО (LMS) • Шелыгов Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4e9f24-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241225T182000
+DTEND;TZID=Europe/Moscow:20241225T194000
+SUMMARY:Введение в проектную деятельность • СДО (LMS) • Шелыгов Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4eaf00-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241023T195000
+DTEND;TZID=Europe/Moscow:20241023T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4eb838-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241030T195000
+DTEND;TZID=Europe/Moscow:20241030T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ec152-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241106T195000
+DTEND;TZID=Europe/Moscow:20241106T211000
+SUMMARY:История России • СДО (LMS) • Азаматова Гульназ Булатовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ed1e2-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241113T195000
+DTEND;TZID=Europe/Moscow:20241113T211000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4edb42-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241120T195000
+DTEND;TZID=Europe/Moscow:20241120T211000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ee498-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241127T195000
+DTEND;TZID=Europe/Moscow:20241127T211000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ef3ca-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241211T195000
+DTEND;TZID=Europe/Moscow:20241211T211000
+SUMMARY:Введение в проектную деятельность • СДО (LMS) • Шелыгов Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f0022-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241218T195000
+DTEND;TZID=Europe/Moscow:20241218T211000
+SUMMARY:Введение в проектную деятельность • СДО (LMS) • Шелыгов Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f0d92-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241225T195000
+DTEND;TZID=Europe/Moscow:20241225T211000
+SUMMARY:Введение в проектную деятельность • СДО (LMS) • Шелыгов Александр 
+ Владимирович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f1daa-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241003T182000
+DTEND;TZID=Europe/Moscow:20241003T194000
+SUMMARY:Основы российской государственности 
+ https://online.mospolytech.ru/course/view.php?id=12846 • Online курс • 
+ Петергова Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f252a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241010T182000
+DTEND;TZID=Europe/Moscow:20241010T194000
+SUMMARY:Основы российской государственности 
+ https://online.mospolytech.ru/course/view.php?id=12846 • Online курс • 
+ Петергова Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f2c82-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241017T182000
+DTEND;TZID=Europe/Moscow:20241017T194000
+SUMMARY:Основы российской государственности 
+ https://online.mospolytech.ru/course/view.php?id=12846 • Online курс • 
+ Петергова Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f38a8-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241024T182000
+DTEND;TZID=Europe/Moscow:20241024T194000
+SUMMARY:Основы российской государственности 
+ https://online.mospolytech.ru/course/view.php?id=12846 • Online курс • 
+ Петергова Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f4000-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241031T182000
+DTEND;TZID=Europe/Moscow:20241031T194000
+SUMMARY:Основы российской государственности 
+ https://online.mospolytech.ru/course/view.php?id=12846 • Online курс • 
+ Петергова Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f4712-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241107T182000
+DTEND;TZID=Europe/Moscow:20241107T194000
+SUMMARY:Основы российской государственности 
+ https://online.mospolytech.ru/course/view.php?id=12846 • Online курс • 
+ Петергова Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f569e-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241003T195000
+DTEND;TZID=Europe/Moscow:20241003T211000
+SUMMARY:Основы российской государственности • Online курс • Петергова 
+ Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f5dd8-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241010T195000
+DTEND;TZID=Europe/Moscow:20241010T211000
+SUMMARY:Основы российской государственности • Online курс • Петергова 
+ Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f64b8-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241017T195000
+DTEND;TZID=Europe/Moscow:20241017T211000
+SUMMARY:Основы российской государственности • Online курс • Петергова 
+ Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f7016-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241024T195000
+DTEND;TZID=Europe/Moscow:20241024T211000
+SUMMARY:Основы российской государственности • Online курс • Петергова 
+ Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f7750-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241031T195000
+DTEND;TZID=Europe/Moscow:20241031T211000
+SUMMARY:Основы российской государственности • Online курс • Петергова 
+ Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f7e30-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241107T195000
+DTEND;TZID=Europe/Moscow:20241107T211000
+SUMMARY:Основы российской государственности • Online курс • Петергова 
+ Ангелина Васильевна
+LOCATION:Online курс
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f8d1c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241011T182000
+DTEND;TZID=Europe/Moscow:20241011T194000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f944c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241018T182000
+DTEND;TZID=Europe/Moscow:20241018T194000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4f9f46-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241115T182000
+DTEND;TZID=Europe/Moscow:20241115T194000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fa658-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241122T182000
+DTEND;TZID=Europe/Moscow:20241122T194000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fb5da-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241129T182000
+DTEND;TZID=Europe/Moscow:20241129T194000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fc25a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241206T182000
+DTEND;TZID=Europe/Moscow:20241206T194000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fc98a-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241213T182000
+DTEND;TZID=Europe/Moscow:20241213T194000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fd088-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241220T182000
+DTEND;TZID=Europe/Moscow:20241220T194000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fe064-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241011T195000
+DTEND;TZID=Europe/Moscow:20241011T211000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4fe7f8-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241018T195000
+DTEND;TZID=Europe/Moscow:20241018T211000
+SUMMARY:Экономическая теория • СДО (LMS) • Шкаленко Анна Викторовна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ff32e-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241115T195000
+DTEND;TZID=Europe/Moscow:20241115T211000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c4ffa54-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241122T195000
+DTEND;TZID=Europe/Moscow:20241122T211000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c500148-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241129T195000
+DTEND;TZID=Europe/Moscow:20241129T211000
+SUMMARY:Основы менеджмента • СДО (LMS) • Бородачева Любовь Викторовна
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c500c4c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241206T195000
+DTEND;TZID=Europe/Moscow:20241206T211000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c501368-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241213T195000
+DTEND;TZID=Europe/Moscow:20241213T211000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c501a5c-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241220T195000
+DTEND;TZID=Europe/Moscow:20241220T211000
+SUMMARY:Управление персоналом • СДО (LMS) • Суворова Екатерина Юрьевна 
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c5029ca-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241005T090000
+DTEND;TZID=Europe/Moscow:20241005T103000
+SUMMARY:Иностранный язык • Webinar • Орлов Вадим Леонидович
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c5036ea-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241012T090000
+DTEND;TZID=Europe/Moscow:20241012T103000
+SUMMARY:Иностранный язык • Webinar • Орлов Вадим Леонидович
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c503fa0-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241019T090000
+DTEND;TZID=Europe/Moscow:20241019T103000
+SUMMARY:Иностранный язык • Webinar • Орлов Вадим Леонидович
+LOCATION:Webinar
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c504e78-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241005T104000
+DTEND;TZID=Europe/Moscow:20241005T121000
+SUMMARY:Иностранный язык • СДО (LMS) • Орлов Вадим Леонидович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c505648-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241012T104000
+DTEND;TZID=Europe/Moscow:20241012T121000
+SUMMARY:Иностранный язык • СДО (LMS) • Орлов Вадим Леонидович
+LOCATION:СДО (LMS)
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20241006T160953
+UID:6c505d96-83fd-11ef-bc98-9a7a4a454fde
+DTSTART;TZID=Europe/Moscow:20241019T104000
+DTEND;TZID=Europe/Moscow:20241019T121000
+SUMMARY:Иностранный язык • СДО (LMS) • Орлов Вадим Леонидович
+LOCATION:СДО (LMS)
+END:VEVENT
+END:VCALENDAR
