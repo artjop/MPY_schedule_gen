@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from typing import Optional
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
@@ -27,22 +28,28 @@ REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "300"))  # 
 # Initialize database
 engine, async_session, init_db = create_database_engine(DATABASE_URL)
 
+# Ensure static directory exists
+os.makedirs("static", exist_ok=True)
+
 # Initialize FastAPI app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup code
+    await init_db()
+    yield
+    # Shutdown code (if needed)
+
 app = FastAPI(
     title="Schedule Service",
     description="Web service for group schedule subscriptions with ICS calendar export",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Templates and static files
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@app.on_event("startup")
-async def startup():
-    """Initialize database on startup."""
-    await init_db()
 
 
 # Dependency to get DB session
