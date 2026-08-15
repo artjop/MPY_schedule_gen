@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Группа {{ group_slug }} - Расписание</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            transition: background 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        h1 {
+            color: white;
+            font-size: 28px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-fetching { background: #fff3cd; color: #856404; }
+        .status-pending { background: #e2e3e5; color: #383d41; }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .info-value {
+            color: #333;
+            font-weight: 500;
+            text-align: right;
+        }
+        .error-text {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 8px;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            text-align: center;
+            display: block;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .qr-section {
+            text-align: center;
+            padding: 20px;
+        }
+        .qr-section img {
+            max-width: 200px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+        .qr-section p {
+            color: #666;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        .link-box {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+            margin-top: 10px;
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .copy-btn:hover {
+            background: #f0f0f0;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .info-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            .info-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-btn" onclick="window.location.href='/'">←</button>
+            <h1>Группа {{ group.title or group_slug }}</h1>
+        </div>
+        
+        <div class="card">
+            <span class="status-badge status-{{ group.fetch_status or 'pending' }}">
+                {% if group.fetch_status == 'ok' %}✓ Актуально
+                {% elif group.fetch_status == 'error' %}⚠ Ошибка
+                {% elif group.fetch_status == 'fetching' %}⏳ Обновление
+                {% else %}⏸ Не обновлено{% endif %}
+            </span>
+            
+            <div class="info-row">
+                <span class="info-label">Название группы</span>
+                <span class="info-value">{{ group.title or group_slug }}</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">Последнее обновление</span>
+                <span class="info-value">
+                    {% if group.last_fetched_at %}
+                        {{ group.last_fetched_at.strftime('%d.%m.%Y %H:%M') }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            
+            {% if group.last_error %}
+            <div class="error-text">
+                <strong>Ошибка:</strong> {{ group.last_error[:200] }}{% if group.last_error|length > 200 %}...{% endif %}
+            </div>
+            {% endif %}
+            
+            <div class="btn-group">
+                <button id="refreshBtn" class="btn btn-primary" onclick="refreshSchedule()">
+                    🔄 Обновить расписание
+                </button>
+                
+                <a href="/cal/{{ group_slug }}.ics" class="btn btn-success" download>
+                    📥 Скачать .ics файл
+                </a>
+                
+                <button class="btn btn-secondary" onclick="copyWebcalLink()">
+                    📋 Скопировать ссылку для подписки
+                </button>
+                
+                <a href="{{ webcal_url }}" class="btn btn-secondary">
+                    🔗 Открыть webcal:// ссылку
+                </a>
+            </div>
+        </div>
+        
+        <div class="card qr-section">
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code">
+            <p>Отсканируйте QR-код для быстрой подписки на календарь</p>
+            <div class="link-box">
+                <span id="webcalLink">{{ webcal_url }}</span>
+                <button class="copy-btn" onclick="copyWebcalLink()">Копия</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast">Ссылка скопирована!</div>
+    
+    <script>
+        const webcalUrl = "{{ webcal_url }}";
+        let refreshTimeout = null;
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        function copyWebcalLink() {
+            navigator.clipboard.writeText(webcalUrl).then(() => {
+                showToast('Ссылка скопирована в буфер обмена');
+            }).catch(() => {
+                // Fallback for older browsers
+                const input = document.createElement('input');
+                input.value = webcalUrl;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                showToast('Ссылка скопирована в буфер обмена');
+            });
+        }
+        
+        async function refreshSchedule() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Обновление...';
+            
+            try {
+                const response = await fetch('/api/groups/{{ group_slug }}/refresh', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    showToast('Обновление началось. Страница обновится через 10 секунд.');
+                    refreshTimeout = setTimeout(() => {
+                        window.location.reload();
+                    }, 10000);
+                } else if (data.status === 'in_progress') {
+                    showToast('Обновление уже выполняется');
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Обновить расписание';
+                } else if (data.status === 'too_early') {
+                    showToast(data.message || 'Подождите перед следующим обновлением');
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Обновить расписание';
+                } else {
+                    showToast('Статус: ' + data.status);
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Обновить расписание';
+                }
+            } catch (error) {
+                showToast('Ошибка при обновлении: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '🔄 Обновить расписание';
+            }
+        }
+        
+        // Auto-refresh status every 30 seconds if currently fetching
+        {% if group.fetch_status == 'fetching' %}
+        setInterval(() => {
+            fetch('/api/groups/{{ group_slug }}/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status !== 'fetching') {
+                        window.location.reload();
+                    }
+                });
+        }, 30000);
+        {% endif %}
+    </script>
+</body>
+</html>
