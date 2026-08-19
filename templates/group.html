@@ -162,6 +162,7 @@
     <script>
         const webcalUrl = "{{ webcal_url }}";
         let refreshTimeout = null;
+        let statusCheckInterval = null;
         
         function showToast(message) {
             const toast = document.getElementById('toast');
@@ -185,11 +186,42 @@
             });
         }
         
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/groups/{{ group_slug }}/status');
+                const data = await response.json();
+                
+                if (data.status === 'fetching') {
+                    return true; // Still fetching
+                } else {
+                    // Fetching complete - reload page
+                    window.location.reload();
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+                return false;
+            }
+        }
+        
         async function refreshSchedule() {
             const btn = document.getElementById('refreshBtn');
             const originalContent = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="animate-spin">⏳</span><span>Обновление...</span>';
+            
+            // Show loading state with steps
+            const setLoadingState = (step) => {
+                const states = {
+                    'waiting': '⏳ Ожидание...',
+                    'loading': '📥 Загрузка страницы...',
+                    'parsing': '🔍 Парсинг данных...',
+                    'generating': '📝 Генерация ICS...',
+                    'saving': '💾 Сохранение...'
+                };
+                btn.innerHTML = `<span class="animate-spin">⏳</span><span>${states[step] || step}</span>`;
+            };
+            
+            setLoadingState('waiting');
             
             try {
                 const response = await fetch('/api/groups/{{ group_slug }}/refresh', {
@@ -198,16 +230,53 @@
                 const data = await response.json();
                 
                 if (data.status === 'started') {
-                    showToast('⏳ Обновление началось. Страница обновится через 10 секунд.');
-                    refreshTimeout = setTimeout(() => {
-                        window.location.reload();
-                    }, 10000);
+                    showToast('⏳ Обновление началось...');
+                    
+                    // Start polling status every 2 seconds
+                    let pollCount = 0;
+                    const maxPolls = 45; // 90 seconds max (45 * 2s)
+                    
+                    statusCheckInterval = setInterval(async () => {
+                        pollCount++;
+                        const stillFetching = await checkStatus();
+                        
+                        if (!stillFetching || pollCount >= maxPolls) {
+                            clearInterval(statusCheckInterval);
+                            btn.disabled = false;
+                            btn.innerHTML = originalContent;
+                            
+                            if (pollCount >= maxPolls) {
+                                showToast('⏰ Превышено время ожидания. Обновите страницу вручную.');
+                            }
+                        }
+                    }, 2000);
+                    
                 } else if (data.status === 'in_progress') {
                     showToast('⏳ Обновление уже выполняется');
                     btn.disabled = false;
                     btn.innerHTML = originalContent;
+                    
+                    // Start polling anyway
+                    let pollCount = 0;
+                    const maxPolls = 45;
+                    
+                    statusCheckInterval = setInterval(async () => {
+                        pollCount++;
+                        const stillFetching = await checkStatus();
+                        
+                        if (!stillFetching || pollCount >= maxPolls) {
+                            clearInterval(statusCheckInterval);
+                            btn.disabled = false;
+                            btn.innerHTML = originalContent;
+                        }
+                    }, 2000);
+                    
                 } else if (data.status === 'too_early') {
                     showToast('⏰ ' + (data.message || 'Подождите перед следующим обновлением'));
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                } else if (data.status === 'error') {
+                    showToast('❌ Ошибка: ' + (data.last_error || 'Неизвестная ошибка'));
                     btn.disabled = false;
                     btn.innerHTML = originalContent;
                 } else {
@@ -222,17 +291,22 @@
             }
         }
         
-        // Auto-refresh status every 30 seconds if currently fetching
+        // Auto-refresh status every 3 seconds if currently fetching
         {% if group.fetch_status == 'fetching' %}
-        setInterval(() => {
-            fetch('/api/groups/{{ group_slug }}/status')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status !== 'fetching') {
-                        window.location.reload();
-                    }
-                });
-        }, 30000);
+        let autoPollCount = 0;
+        const maxAutoPolls = 60; // 3 minutes max (60 * 3s)
+        
+        statusCheckInterval = setInterval(async () => {
+            autoPollCount++;
+            const stillFetching = await checkStatus();
+            
+            if (!stillFetching || autoPollCount >= maxAutoPolls) {
+                clearInterval(statusCheckInterval);
+                if (autoPollCount >= maxAutoPolls) {
+                    showToast('⏰ Превышено время ожидания. Обновите страницу вручную.');
+                }
+            }
+        }, 3000);
         {% endif %}
     </script>
 </body>

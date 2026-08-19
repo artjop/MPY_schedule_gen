@@ -23,7 +23,7 @@ from schedule_parser import fetch_and_convert_schedule
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./schedule.db")
 SECRET_TOKEN = os.getenv("SECRET_TOKEN", "change_this_secret_token")
-REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "300"))  # 5 minutes default
+REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "60"))  # 1 minute default
 
 # Initialize database
 engine, async_session, init_db = create_database_engine(DATABASE_URL)
@@ -109,8 +109,13 @@ async def refresh_group_schedule_task(group_slug: str) -> tuple[bool, Optional[s
             return False, "Group not found"
         
         try:
-            # Fetch and convert schedule
-            schedule_data, ics_content = fetch_and_convert_schedule(group_slug)
+            # Fetch and convert schedule with timeout
+            import asyncio
+            loop = asyncio.get_event_loop()
+            schedule_data, ics_content = await asyncio.wait_for(
+                loop.run_in_executor(None, fetch_and_convert_schedule, group_slug),
+                timeout=60  # 60 second timeout for parsing
+            )
             
             # Update group data
             group.schedule_json = json.dumps(schedule_data, ensure_ascii=False)
@@ -126,6 +131,14 @@ async def refresh_group_schedule_task(group_slug: str) -> tuple[bool, Optional[s
             
             await session.commit()
             return True, None
+            
+        except asyncio.TimeoutError:
+            error_msg = "Timeout: парсинг занял слишком много времени (>60 сек)"
+            group.fetch_status = "error"
+            group.last_error = error_msg
+            group.last_fetched_at = datetime.utcnow()
+            await session.commit()
+            return False, error_msg
             
         except Exception as e:
             error_msg = str(e)
@@ -245,58 +258,6 @@ async def get_calendar(group_slug: str):
                 "Content-Disposition": f'attachment; filename="schedule_{group_slug}.ics"',
                 "Cache-Control": "public, max-age=300"  # Cache for 5 minutes
             }
-        )
-
-
-@app.post("/api/groups/{group_slug}/refresh", response_model=RefreshStatus)
-async def refresh_schedule(group_slug: str, background_tasks: BackgroundTasks):
-    """
-    Trigger schedule refresh for a group.
-    
-    Rules:
-    - If refresh is already in progress, return "in_progress"
-    - If last refresh was recently, return "too_early"
-    - Otherwise, start background refresh
-    """
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        now = datetime.utcnow()
-        
-        # Check if already fetching
-        if group.fetch_status == "fetching":
-            return RefreshStatus(
-                status="in_progress",
-                message="Refresh is already in progress",
-                last_updated_at=group.last_fetched_at,
-                last_error=group.last_error
-            )
-        
-        # Check cooldown
-        if group.last_refresh_attempt:
-            time_since_last = (now - group.last_refresh_attempt).total_seconds()
-            if time_since_last < REFRESH_COOLDOWN_SECONDS:
-                remaining = int(REFRESH_COOLDOWN_SECONDS - time_since_last)
-                return RefreshStatus(
-                    status="too_early",
-                    message=f"Please wait {remaining} seconds before refreshing again",
-                    last_updated_at=group.last_fetched_at,
-                    last_error=group.last_error
-                )
-        
-        # Mark as fetching and start background task
-        group.fetch_status = "fetching"
-        group.last_refresh_attempt = now
-        await session.commit()
-        
-        # Start background refresh
-        background_tasks.add_task(refresh_group_schedule, session, group)
-        
-        return RefreshStatus(
-            status="started",
-            message="Refresh started",
-            last_updated_at=group.last_fetched_at,
-            last_error=group.last_error
         )
 
 
