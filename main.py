@@ -92,39 +92,100 @@ async def get_or_create_group(session, group_slug: str) -> Group:
     return group
 
 
-async def refresh_group_schedule(session, group: Group) -> tuple[bool, Optional[str]]:
+async def refresh_group_schedule_task(group_slug: str) -> tuple[bool, Optional[str]]:
     """
-    Refresh schedule for a group.
+    Refresh schedule for a group (background task version).
+    Creates its own database session.
     
     Returns:
         Tuple of (success, error_message)
     """
-    try:
-        # Fetch and convert schedule
-        schedule_data, ics_content = fetch_and_convert_schedule(group.slug)
+    async with async_session() as session:
+        from sqlalchemy import select
+        result = await session.execute(select(Group).where(Group.slug == group_slug))
+        group = result.scalar_one_or_none()
         
-        # Update group data
-        group.schedule_json = json.dumps(schedule_data, ensure_ascii=False)
-        group.ics_text = ics_content
-        group.last_fetched_at = datetime.utcnow()
-        group.fetch_status = "ok"
-        group.last_error = None
-        group.version += 1
+        if not group:
+            return False, "Group not found"
         
-        # Extract group title if available
-        if schedule_data.get('group'):
-            group.title = schedule_data['group'].get('title', group.slug)
+        try:
+            # Fetch and convert schedule
+            schedule_data, ics_content = fetch_and_convert_schedule(group_slug)
+            
+            # Update group data
+            group.schedule_json = json.dumps(schedule_data, ensure_ascii=False)
+            group.ics_text = ics_content
+            group.last_fetched_at = datetime.utcnow()
+            group.fetch_status = "ok"
+            group.last_error = None
+            group.version += 1
+            
+            # Extract group title if available
+            if schedule_data.get('group'):
+                group.title = schedule_data['group'].get('title', group_slug)
+            
+            await session.commit()
+            return True, None
+            
+        except Exception as e:
+            error_msg = str(e)
+            group.fetch_status = "error"
+            group.last_error = error_msg
+            group.last_fetched_at = datetime.utcnow()
+            await session.commit()
+            return False, error_msg
+
+
+@app.post("/api/groups/{group_slug}/refresh", response_model=RefreshStatus)
+async def refresh_schedule(group_slug: str, background_tasks: BackgroundTasks):
+    """
+    Trigger schedule refresh for a group.
+    
+    Rules:
+    - If refresh is already in progress, return "in_progress"
+    - If last refresh was recently, return "too_early"
+    - Otherwise, start background refresh
+    """
+    async with async_session() as session:
+        group = await get_or_create_group(session, group_slug)
         
+        now = datetime.utcnow()
+        
+        # Check if already fetching
+        if group.fetch_status == "fetching":
+            return RefreshStatus(
+                status="in_progress",
+                message="Refresh is already in progress",
+                last_updated_at=group.last_fetched_at,
+                last_error=group.last_error
+            )
+        
+        # Check cooldown
+        if group.last_refresh_attempt:
+            time_since_last = (now - group.last_refresh_attempt).total_seconds()
+            if time_since_last < REFRESH_COOLDOWN_SECONDS:
+                remaining = int(REFRESH_COOLDOWN_SECONDS - time_since_last)
+                return RefreshStatus(
+                    status="too_early",
+                    message=f"Please wait {remaining} seconds before refreshing again",
+                    last_updated_at=group.last_fetched_at,
+                    last_error=group.last_error
+                )
+        
+        # Mark as fetching and start background task
+        group.fetch_status = "fetching"
+        group.last_refresh_attempt = now
         await session.commit()
-        return True, None
         
-    except Exception as e:
-        error_msg = str(e)
-        group.fetch_status = "error"
-        group.last_error = error_msg
-        group.last_fetched_at = datetime.utcnow()
-        await session.commit()
-        return False, error_msg
+        # Start background refresh with group_slug only
+        background_tasks.add_task(refresh_group_schedule_task, group_slug)
+        
+        return RefreshStatus(
+            status="started",
+            message="Refresh started",
+            last_updated_at=group.last_fetched_at,
+            last_error=group.last_error
+        )
 
 
 # Routes
@@ -298,8 +359,10 @@ async def refresh_all_groups(request: Request, background_tasks: BackgroundTasks
             group.last_refresh_attempt = now
             refreshed_count += 1
             
-            # Start background refresh
-            background_tasks.add_task(refresh_group_schedule, session, group)
+            # Start background refresh with group_slug
+            background_tasks.add_task(refresh_group_schedule_task, group.slug)
+        
+        await session.commit()
         
         return {
             "status": "ok",
