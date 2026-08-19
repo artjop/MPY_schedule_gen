@@ -3,245 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Расписание группы {{ group.slug }}</title>
+    <title>Расписание {{ group.slug }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .spinner { border-top-color: transparent; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader {
+            border-top-color: #3B82F6;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
 
     <header class="bg-white shadow-sm">
         <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-            <a href="/" class="text-xl font-bold text-blue-600 hover:text-blue-700 transition">📅 ScheduleService</a>
+            <h1 class="text-xl font-bold text-blue-600">📅 Расписание Групп</h1>
+            <a href="/" class="text-sm text-gray-500 hover:text-blue-600">← На главную</a>
         </div>
     </header>
 
-    <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
-        <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 fade-in">
-            
-            <!-- Заголовок группы -->
-            <div class="mb-6 border-b pb-4">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Группа {{ group.slug }}</h1>
-                <p class="text-gray-500 text-sm">
-                    {% if group.last_updated_at %}
-                        Обновлено: {{ group.last_updated_at.strftime('%d.%m.%Y %H:%M') }}
-                    {% else %}
-                        Расписание еще не загружено
-                    {% endif %}
-                </p>
+    <main class="flex-grow max-w-4xl mx-auto px-4 py-8 w-full">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Группа {{ group.slug }}</h2>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {% if group.last_updated_at %}
+                            Обновлено: {{ group.last_updated_at.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                            Расписание еще не загружено
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <button id="refreshBtn" onclick="startRefresh()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btnIcon">🔄</span>
+                    <span id="btnText">Обновить расписание</span>
+                </button>
             </div>
 
-            <!-- Статус и Управление -->
-            <div class="bg-blue-50 rounded-lg p-4 mb-8 border border-blue-100">
-                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                    
-                    <div class="flex items-center gap-3 w-full md:w-auto">
-                        <!-- Индикатор статуса -->
-                        <div id="status-indicator" class="w-3 h-3 rounded-full bg-gray-300"></div>
-                        <span id="status-text" class="font-medium text-gray-700">
-                            {% if group.is_fetching %}Обновление...{% elif group.last_error %}Ошибка{% elif group.ics_text %}Актуально{% else %}Нет данных{% endif %}
-                        </span>
+            <!-- Статус бар -->
+            <div id="statusBlock" class="mb-6 hidden">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-center gap-3">
+                        <div id="statusSpinner" class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6"></div>
+                        <div>
+                            <p class="font-semibold text-blue-800" id="statusTitle">Обновление...</p>
+                            <p class="text-sm text-blue-600" id="statusStage">Этап: Ожидание</p>
+                        </div>
                     </div>
+                    <p id="statusError" class="text-red-600 text-sm mt-2 hidden"></p>
+                </div>
+            </div>
 
-                    <button id="refresh-btn" onclick="startRefresh()" 
-                        class="w-full md:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
-                        <span>🔄 Обновить</span>
+            <!-- Действия -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a href="/cal/{{ group.slug }}.ics" 
+                   class="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg transition shadow-sm">
+                    <span>⬇️</span> Скачать .ics файл
+                </a>
+                
+                <div class="relative">
+                    <input type="text" id="subLink" readonly 
+                           value="{{ base_url }}cal/{{ group.slug }}.ics"
+                           class="w-full bg-gray-100 border border-gray-300 text-gray-700 py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm truncate">
+                    <button onclick="copyLink()" class="absolute right-2 top-2 bottom-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 rounded text-sm font-medium transition">
+                        Копировать
                     </button>
                 </div>
-
-                <!-- Детали процесса (видны только при обновлении) -->
-                <div id="progress-details" class="hidden mt-4 pt-4 border-t border-blue-200">
-                    <div class="text-sm text-blue-800 font-medium mb-2">Этапы:</div>
-                    <ul class="text-xs text-blue-700 space-y-1" id="steps-list">
-                        <li id="step-waiting" class="opacity-50">⏳ Ожидание...</li>
-                        <li id="step-fetching_html" class="opacity-50">⬇️ Загрузка страницы...</li>
-                        <li id="step-parsing" class="opacity-50">🔍 Парсинг данных...</li>
-                        <li id="step-generating_ics" class="opacity-50">⚙️ Генерация календаря...</li>
-                        <li id="step-saving" class="opacity-50">💾 Сохранение...</li>
-                    </ul>
-                    <div id="error-message" class="hidden mt-2 text-red-600 text-sm font-bold bg-red-100 p-2 rounded"></div>
-                </div>
             </div>
 
-            <!-- Действия с календарем -->
-            {% if group.ics_text %}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <!-- Ссылки -->
-                <div class="space-y-4">
-                    <a href="/cal/{{ group.slug }}.ics" 
-                       class="block w-full text-center py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow transition">
-                        ⬇️ Скачать .ics файл
-                    </a>
-                    
-                    <div class="relative">
-                        <input type="text" readonly value="{{ request.url.scheme }}://{{ request.url.netloc }}/cal/{{ group.slug }}.ics"
-                               class="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none" id="sub-link">
-                        <button onclick="copyLink()" class="absolute right-2 top-2 bottom-2 px-3 bg-white border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 transition">
-                            Копировать
-                        </button>
-                    </div>
-                    
-                    <a href="webcal://{{ request.url.netloc }}/cal/{{ group.slug }}.ics"
-                       class="block w-full text-center py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium shadow transition">
-                        📱 Открыть в Apple Calendar
-                    </a>
-                </div>
-
-                <!-- QR Код -->
-                <div class="flex justify-center items-center bg-gray-50 rounded-lg p-4 border">
-                    <div id="qrcode"></div>
-                </div>
+            <div class="mt-4 flex gap-4 items-center">
+                 <button onclick="openWebcal()" class="text-blue-600 hover:underline text-sm font-medium">
+                    📲 Открыть в календаре (webcal)
+                 </button>
+                 
+                 <div id="qrcode" class="ml-auto"></div>
             </div>
-            {% else %}
-            <div class="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                Нажмите "Обновить", чтобы загрузить расписание впервые.
-            </div>
-            {% endif %}
-
         </div>
+        
+        <!-- Превью расписания (если есть) -->
+        {% if group.schedule_json %}
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-bold mb-4">Предпросмотр (JSON)</h3>
+            <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-xs text-gray-700 max-h-64">{{ group.schedule_json[:500] }}...</pre>
+            <p class="text-xs text-gray-400 mt-2">* Показаны первые 500 символов</p>
+        </div>
+        {% endif %}
     </main>
 
-    <footer class="bg-white border-t mt-auto">
-        <div class="max-w-4xl mx-auto px-4 py-6 text-center text-gray-400 text-sm">
-            &copy; 2024 ScheduleService. Все права защищены.
-        </div>
-    </footer>
-
-    <script>
-        const groupSlug = "{{ group.slug }}";
-        let isPolling = false;
-
-        // Инициализация QR
-        const currentUrl = window.location.origin + "/cal/" + groupSlug + ".ics";
-        new QRCode(document.getElementById("qrcode"), {
-            text: currentUrl,
-            width: 128,
-            height: 128
-        });
-
-        function copyLink() {
-            const copyText = document.getElementById("sub-link");
-            copyText.select();
-            document.execCommand("copy");
-            alert("Ссылка скопирована: " + copyText.value);
-        }
-
-        async function startRefresh() {
-            const btn = document.getElementById("refresh-btn");
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span> Запуск...';
-            
-            try {
-                const res = await fetch(`/api/groups/${groupSlug}/refresh`, { method: 'POST' });
-                const data = await res.json();
-                
-                if (data.status === 'started' || data.status === 'in_progress') {
-                    showProgressUI();
-                    pollStatus();
-                } else if (data.status === 'cooldown') {
-                    alert(`Подождите ${data.remaining_seconds} сек перед следующим обновлением.`);
-                    resetButton();
-                } else {
-                    resetButton();
-                }
-            } catch (e) {
-                alert("Ошибка сети: " + e);
-                resetButton();
-            }
-        }
-
-        function showProgressUI() {
-            document.getElementById("progress-details").classList.remove("hidden");
-            document.getElementById("status-text").innerText = "Обновление...";
-            document.getElementById("status-indicator").className = "w-3 h-3 rounded-full bg-blue-500 animate-pulse";
-            resetSteps();
-        }
-
-        function resetSteps() {
-            ['waiting', 'fetching_html', 'parsing', 'generating_ics', 'saving'].forEach(step => {
-                const el = document.getElementById(`step-${step}`);
-                if(el) {
-                    el.classList.add('opacity-50');
-                    el.classList.remove('font-bold', 'text-blue-900', 'opacity-100');
-                }
-            });
-            document.getElementById("error-message").classList.add("hidden");
-        }
-
-        function updateStep(stepName) {
-            resetSteps();
-            const el = document.getElementById(`step-${stepName}`);
-            if (el) {
-                el.classList.remove('opacity-50');
-                el.classList.add('font-bold', 'text-blue-900', 'opacity-100');
-                // Прокрутка к активному шагу на мобильных
-                el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-            }
-        }
-
-        async function pollStatus() {
-            if (!isPolling) return;
-            
-            try {
-                const res = await fetch(`/api/groups/${groupSlug}/status`);
-                const data = await res.json();
-
-                if (data.is_fetching) {
-                    isPolling = true;
-                    updateStep(data.fetch_step || 'waiting');
-                    document.getElementById("status-text").innerText = "Обновление...";
-                    setTimeout(pollStatus, 1500); // Опрос каждые 1.5 сек
-                } else {
-                    isPolling = false;
-                    finishProcess(data);
-                }
-            } catch (e) {
-                console.error(e);
-                isPolling = false;
-                finishProcess({ error: "Потеря соединения" });
-            }
-        }
-
-        function finishProcess(data) {
-            const btn = document.getElementById("refresh-btn");
-            const statusText = document.getElementById("status-text");
-            const indicator = document.getElementById("status-indicator");
-            const errorMsg = document.getElementById("error-message");
-
-            if (data.last_error) {
-                statusText.innerText = "Ошибка обновления";
-                indicator.className = "w-3 h-3 rounded-full bg-red-500";
-                errorMsg.innerText = "❌ " + data.last_error;
-                errorMsg.classList.remove("hidden");
-            } else {
-                statusText.innerText = "Готово!";
-                indicator.className = "w-3 h-3 rounded-full bg-green-500";
-                // Перезагрузка страницы через 1 сек, чтобы увидеть новые данные
-                setTimeout(() => window.location.reload(), 1000);
-                return; // Выход, чтобы не сбрасывать кнопку сразу
-            }
-
-            btn.disabled = false;
-            btn.innerHTML = '<span>🔄 Обновить</span>';
-        }
-
-        function resetButton() {
-            const btn = document.getElementById("refresh-btn");
-            btn.disabled = false;
-            btn.innerHTML = '<span>🔄 Обновить</span>';
-        }
-
-        // Автозапуск поллинга, если мы зашли на страницу во время обновления
-        {% if group.is_fetching %}
-            isPolling = true;
-            showProgressUI();
-            pollStatus();
-        {% endif %}
-    </script>
-</body>
-</html>
+    <footer class="bg-gray
