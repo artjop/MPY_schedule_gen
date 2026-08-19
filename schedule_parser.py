@@ -107,43 +107,31 @@ def json_to_df(data: Dict) -> pd.DataFrame:
             day_key = str(day_num)
             
             if week_key in grid and day_key in grid[week_key]:
-                temp_df = pd.DataFrame(grid[week_key][day_key])
-                if not temp_df.empty:
-                    temp_df['lesson'] = day_num
-                    temp_df['day'] = days[day_num]
-                    combined_df = pd.concat([combined_df, temp_df], ignore_index=True)
+                day_lessons = grid[week_key][day_key]
+                if day_lessons:
+                    # Создаем DataFrame из занятий дня
+                    temp_df = pd.DataFrame(day_lessons)
+                    if not temp_df.empty:
+                        # Добавляем номер пары на основе позиции в списке
+                        # API возвращает занятия в порядке их следования (1-я, 2-я и т.д.)
+                        temp_df['lesson'] = list(range(1, len(temp_df) + 1))
+                        temp_df['day'] = days[day_num]
+                        combined_df = pd.concat([combined_df, temp_df], ignore_index=True)
 
     if combined_df.empty:
         return combined_df
 
-    # Select relevant columns (only if they exist)
-    expected_cols = [0, 1, 2, 3, 4, 9, 10]
-    available_cols = [i for i in expected_cols if i < len(combined_df.columns)]
-    if len(available_cols) >= 5:  # Need at least basic columns
-        combined_df = combined_df.iloc[:, available_cols[:7]]
-    else:
-        # Keep all columns if we don't have enough
-        pass
-
     # Parse date ranges
     combined_df['dts'] = combined_df['dts'].apply(parse_date_range)
 
-    # Extract time ranges
+    # Extract time ranges based on lesson position
     def extract_times(lesson_number: int) -> List[str]:
         time_range = lessons_times.get(lesson_number, '9:00-10:30')
         start_time, end_time = time_range.split('-')
         return [start_time, end_time]
 
-    # Only add time_range if lesson column exists
-    if 'lesson' in combined_df.columns:
-        combined_df['time_range'] = combined_df['lesson'].apply(extract_times)
-    else:
-        # Default time range if lesson column missing
-        combined_df['time_range'] = [['9:00', '10:30']] * len(combined_df)
-    
-    # Ensure 'day' column exists (for ical_gen)
-    if 'day' not in combined_df.columns:
-        combined_df['day'] = 'ПН'  # Default to Monday
+    # Add time_range column
+    combined_df['time_range'] = combined_df['lesson'].apply(extract_times)
     
     return combined_df
 

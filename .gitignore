@@ -1,12 +1,16 @@
 ```
-# Compiled and build artifacts
-*.pyc
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 
 # Logs and temp files
 *.log
-server.log
+*.tmp
 
-# Database files
-*.db
+# Environment
+.env
+.env.local
+*.env.*
 ```
