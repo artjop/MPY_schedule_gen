@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Группа {{ group_slug }} - Расписание</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        primaryHover: '#2563EB',
+                        success: '#10B981',
+                        successHover: '#059669',
+                        background: '#F9FAFB',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background min-h-screen font-sans">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-4xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <button onclick="window.location.href='/'" class="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors duration-200">
+                <span class="text-xl">←</span>
+                <span class="font-medium">Назад</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <!-- Group Title Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                        Группа {{ group.title or group_slug }}
+                    </h1>
+                    <p class="text-gray-600 text-sm">Управление расписанием и подпиской</p>
+                </div>
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold
+                    {% if group.fetch_status == 'ok' %}bg-green-100 text-green-800
+                    {% elif group.fetch_status == 'error' %}bg-red-100 text-red-800
+                    {% elif group.fetch_status == 'fetching' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {% if group.fetch_status == 'ok' %}✓ Актуально
+                    {% elif group.fetch_status == 'error' %}⚠ Ошибка
+                    {% elif group.fetch_status == 'fetching' %}⏳ Обновление
+                    {% else %}⏸ Не обновлено{% endif %}
+                </span>
+            </div>
+
+            <!-- Info Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Название группы</p>
+                    <p class="text-gray-900 font-semibold">{{ group.title or group_slug }}</p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Последнее обновление</p>
+                    <p class="text-gray-900 font-semibold">
+                        {% if group.last_fetched_at %}
+                            {{ group.last_fetched_at.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            {% if group.last_error %}
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                <div class="flex items-start gap-3">
+                    <span class="text-red-500 text-xl">⚠️</span>
+                    <div>
+                        <p class="font-semibold text-red-800 mb-1">Ошибка при обновлении</p>
+                        <p class="text-sm text-red-700">{{ group.last_error[:200] }}{% if group.last_error|length > 200 %}...{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button id="refreshBtn" onclick="refreshSchedule()" 
+                    class="w-full bg-primary hover:bg-primaryHover text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>🔄</span>
+                    <span>Обновить расписание</span>
+                </button>
+
+                <a href="/cal/{{ group_slug }}.ics" 
+                    class="w-full bg-success hover:bg-successHover text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>📥</span>
+                    <span>Скачать .ics файл</span>
+                </a>
+
+                <button onclick="copyWebcalLink()" 
+                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>📋</span>
+                    <span>Скопировать ссылку для подписки</span>
+                </button>
+
+                <a href="{{ webcal_url }}" 
+                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>🔗</span>
+                    <span>Открыть webcal:// ссылку</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- QR Code Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+            <h2 class="text-xl font-bold text-gray-900 text-center mb-6">Быстрая подписка</h2>
+            
+            <div class="flex flex-col items-center">
+                <div class="bg-white p-4 rounded-2xl shadow-md border border-gray-200 mb-4">
+                    <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code" class="w-48 h-48 object-contain">
+                </div>
+                <p class="text-gray-600 text-sm text-center mb-6">
+                    Отсканируйте QR-код для быстрой подписки на календарь
+                </p>
+
+                <!-- Link Box -->
+                <div class="w-full bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase font-medium mb-2">Ссылка для подписки</p>
+                    <div class="flex items-center gap-2">
+                        <code id="webcalLink" class="flex-1 text-xs text-gray-700 break-all font-mono bg-white px-3 py-2 rounded-lg border border-gray-200">
+                            {{ webcal_url }}
+                        </code>
+                        <button onclick="copyWebcalLink()" 
+                            class="shrink-0 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-all duration-200 text-sm whitespace-nowrap">
+                            Копия
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 py-6 border-t border-gray-200 bg-white">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <p class="text-sm text-gray-500">
+                Сервис расписания учебных групп
+            </p>
+            <p class="text-xs text-gray-400 mt-1">
+                © 2024 Все права защищены
+            </p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-xl text-sm font-medium opacity-0 transition-opacity duration-300 pointer-events-none z-50 shadow-lg">
+        Сообщение
+    </div>
+
+    <script>
+        const webcalUrl = "{{ webcal_url }}";
+        let refreshTimeout = null;
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 3000);
+        }
+        
+        function copyWebcalLink() {
+            navigator.clipboard.writeText(webcalUrl).then(() => {
+                showToast('✅ Ссылка скопирована в буфер обмена');
+            }).catch(() => {
+                // Fallback for older browsers
+                const input = document.createElement('input');
+                input.value = webcalUrl;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                showToast('✅ Ссылка скопирована в буфер обмена');
+            });
+        }
+        
+        async function refreshSchedule() {
+            const btn = document.getElementById('refreshBtn');
+            const originalContent = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin">⏳</span><span>Обновление...</span>';
+            
+            try {
+                const response = await fetch('/api/groups/{{ group_slug }}/refresh', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    showToast('⏳ Обновление началось. Страница обновится через 10 секунд.');
+                    refreshTimeout = setTimeout(() => {
+                        window.location.reload();
+                    }, 10000);
+                } else if (data.status === 'in_progress') {
+                    showToast('⏳ Обновление уже выполняется');
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                } else if (data.status === 'too_early') {
+                    showToast('⏰ ' + (data.message || 'Подождите перед следующим обновлением'));
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                } else {
+                    showToast('Статус: ' + data.status);
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                }
+            } catch (error) {
+                showToast('❌ Ошибка при обновлении: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        }
+        
+        // Auto-refresh status every 30 seconds if currently fetching
+        {% if group.fetch_status == 'fetching' %}
+        setInterval(() => {
+            fetch('/api/groups/{{ group_slug }}/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status !== 'fetching') {
+                        window.location.reload();
+                    }
+                });
+        }, 30000);
+        {% endif %}
+    </script>
+</body>
+</html>

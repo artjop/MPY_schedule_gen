@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/schedule.db
+      - SECRET_TOKEN=${SECRET_TOKEN:-change_this_secret_token}
+      - REFRESH_COOLDOWN_SECONDS=300
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Optional: Use PostgreSQL instead of SQLite
+# Uncomment the following services if you want to use PostgreSQL
+#
+#  db:
+#    image: postgres:15-alpine
+#    environment:
+#      - POSTGRES_DB=schedule
+#      - POSTGRES_USER=schedule_user
+#      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U schedule_user"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#  web:
+#    build: .
+#    ports:
+#      - "8000:8000"
+#    environment:
+#      - DATABASE_URL=postgresql+asyncpg://schedule_user:${POSTGRES_PASSWORD:-changeme}@db:5432/schedule
+#      - SECRET_TOKEN=${SECRET_TOKEN:-change_this_secret_token}
+#      - REFRESH_COOLDOWN_SECONDS=300
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    restart: unless-stopped
+#
+# volumes:
+#   postgres_data:
