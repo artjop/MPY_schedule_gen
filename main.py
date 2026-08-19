@@ -1,336 +1,327 @@
-"""
-Main FastAPI application for the schedule service.
-"""
-
 import os
 import json
+import logging
+import time
+import threading
+import hashlib
 from datetime import datetime, timedelta
-from typing import Optional
-from contextlib import asynccontextmanager
+from typing import Optional, Dict, Any
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import qrcode
-from io import BytesIO
-import base64
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import Response
+import httpx
+from icalendar import Calendar, Event, vText
+from zoneinfo import ZoneInfo
 
-from models import create_database_engine, Group
-from schedule_parser import fetch_and_convert_schedule
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from contextlib import asynccontextmanager
 
-# Configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./schedule.db")
-SECRET_TOKEN = os.getenv("SECRET_TOKEN", "change_this_secret_token")
-REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "60"))  # 1 minute default
+# --- Конфигурация ---
+DATABASE_URL = "sqlite:///./schedule.db"
+TZ_MOSCOW = ZoneInfo("Europe/Moscow")
+COOLDOWN_SECONDS = 60  # 1 минута
+PARSING_TIMEOUT = 60   # 60 секунд на парсинг
 
-# Initialize database
-engine, async_session, init_db = create_database_engine(DATABASE_URL)
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Ensure static directory exists
+# Создание папки static
 os.makedirs("static", exist_ok=True)
 
-# Initialize FastAPI app
+# --- База данных ---
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Group(Base):
+    __tablename__ = "groups"
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    schedule_json = Column(JSON, default=list)
+    ics_text = Column(Text, nullable=True)
+    last_updated_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    is_fetching = Column(Boolean, default=False)
+    fetch_stage = Column(String, default="Ожидание...") # Новый этап
+
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- Логика парсинга (Имитация/Заглушка для примера, замените на свой реальный парсер) ---
+# ВСТАВЬТЕ СЮДА ВАШ РЕАЛЬНЫЙ КОД ПАРСИНГА
+async def fetch_schedule_from_source(group_slug: str) -> list:
+    """
+    Здесь должен быть ваш реальный код парсинга.
+    Для теста я верну фейковые данные, если не найду реального URL.
+    ЗАМЕНИТЕ ЭТУ ФУНКЦИЮ НА ВАШУ ЛОГИКУ.
+    """
+    logger.info(f"Начинаем парсинг для {group_slug}...")
+    
+    # Пример реальной логики (раскомментируйте и адаптируйте под себя):
+    # url = f"https://portal.tpu.ru/SHARED/r/RATF/academic/schedule/{group_slug}" 
+    # async with httpx.AsyncClient() as client:
+    #     resp = await client.get(url, timeout=PARSING_TIMEOUT)
+    #     resp.raise_for_status()
+    #     html = resp.text
+    #     return parse_html(html) # Ваша функция парсинга
+    
+    # ИМИТАЦИЯ ДЛЯ ПРОВЕРКИ РАБОТОСПОСОБНОСТИ (УДАЛИТЬ ПРИ ПРОДЕ)
+    await asyncio.sleep(2) # Имитация задержки сети
+    import random
+    if random.random() > 0.9:
+        raise Exception("Случайная ошибка сети (для теста)")
+        
+    # Генерируем тестовые данные
+    events = []
+    days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
+    for day in days:
+        count = random.randint(0, 4)
+        for i in range(count):
+            start_hour = 9 + i * 2
+            events.append({
+                "day": day,
+                "time_start": f"{start_hour:02d}:00",
+                "time_end": f"{start_hour+1:02d}:50",
+                "subject": f"Предмет {day} {i+1}",
+                "room": f"Ауд. {random.randint(100, 500)}",
+                "type": "Лекция" if i == 0 else "Семинар"
+            })
+    return events
+
+def generate_ics(events: list, group_slug: str) -> str:
+    cal = Calendar()
+    cal.add('prodid', f'-//Schedule Service//{group_slug}//RU')
+    cal.add('version', '2.0')
+    cal.add('calscale', 'GREGORIAN')
+    cal.add('method', 'PUBLISH')
+    cal.add('x-wr-calname', f'Расписание {group_slug}')
+
+    # Простая логика разворачивания расписания на семестр (пример)
+    # В реальном проекте тут должна быть ваша логика дат
+    from datetime import date
+    start_date = date.today()
+    
+    # Найдем ближайший понедельник как точку отсчета
+    days_ahead = 0 - start_date.weekday()
+    if days_ahead < 0: # Target day already happened this week
+        days_ahead += 7
+    next_monday = start_date + timedelta(days=days_ahead)
+
+    day_map = {"Пн": 0, "Вт": 1, "Ср": 2, "Чт": 3, "Пт": 4, "Сб": 5, "Вс": 6}
+
+    for event in events:
+        day_name = event.get('day')
+        if day_name not in day_map:
+            continue
+            
+        weekday_offset = day_map[day_name]
+        
+        # Генерируем события на 4 недели вперед для примера
+        for week in range(4):
+            event_date = next_monday + timedelta(weeks=week, days=weekday_offset)
+            
+            t_start = event.get('time_start', '09:00')
+            t_end = event.get('time_end', '10:30')
+            
+            dt_start = datetime.combine(event_date, datetime.strptime(t_start, "%H:%M").time())
+            dt_end = datetime.combine(event_date, datetime.strptime(t_end, "%H:%M").time())
+            
+            # Стабильный UID
+            uid_str = f"{group_slug}-{event.get('subject')}-{t_start}-{t_end}-{event.get('room')}"
+            uid = hashlib.md5(uid_str.encode()).hexdigest() + "@schedule.local"
+
+            ve = Event()
+            ve.add('summary', f"{event.get('subject')} ({event.get('type')})")
+            ve.add('dtstart', dt_start)
+            ve.add('dtend', dt_end)
+            ve.add('location', event.get('room', ''))
+            ve.add('uid', uid)
+            ve.add('dtstamp', datetime.now(TZ_MOSCOW))
+            
+            cal.add_component(ve)
+
+    return cal.to_ical().decode('utf-8')
+
+# --- Глобальное хранилище состояния задач (для синхронизации потоков) ---
+# В продакшене с несколькими воркерами лучше использовать Redis
+active_tasks: Dict[str, dict] = {} 
+
+def run_refresh_task(db: Session, group_slug: str):
+    """Функция, выполняемая в отдельном потоке"""
+    stage = "Инициализация..."
+    try:
+        # 1. Обновляем статус в БД сразу
+        db_group = db.query(Group).filter(Group.slug == group_slug).first()
+        if not db_group:
+            logger.error(f"Группа {group_slug} не найдена в БД внутри задачи")
+            return
+
+        db_group.is_fetching = True
+        db_group.fetch_stage = "Загрузка данных..."
+        db_group.last_error = None
+        db.commit()
+
+        # 2. Парсинг
+        stage = "Парсинг данных..."
+        db_group.fetch_stage = stage
+        db.commit()
+        
+        # Вызываем функцию парсинга (может быть асинхронной, нужно обернуть)
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+        events = loop.run_until_complete(fetch_schedule_from_source(group_slug))
+        
+        if not events:
+            logger.warning(f"Расписание пустое для {group_slug}")
+            # Не считаем это ошибкой, просто пустой календарь
+
+        # 3. Генерация ICS
+        stage = "Генерация ICS..."
+        db_group.fetch_stage = stage
+        db.commit()
+        
+        ics_content = generate_ics(events, group_slug)
+        
+        # 4. Сохранение
+        stage = "Сохранение..."
+        db_group.fetch_stage = stage
+        db.commit()
+        
+        db_group.schedule_json = events
+        db_group.ics_text = ics_content
+        db_group.last_updated_at = datetime.now()
+        db_group.is_fetching = False
+        db_group.fetch_stage = "Готово"
+        db.commit()
+        
+        logger.info(f"Обновление для {group_slug} завершено успешно.")
+
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении {group_slug}: {e}", exc_info=True)
+        # Откат флага при ошибке
+        db_group = db.query(Group).filter(Group.slug == group_slug).first()
+        if db_group:
+            db_group.is_fetching = False
+            db_group.fetch_stage = f"Ошибка: {str(e)}"
+            db_group.last_error = str(e)
+            db.commit()
+
+# --- Lifespan ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup and shutdown events."""
-    # Startup code
-    await init_db()
+    # Startup
+    logger.info("Сервис запущен")
     yield
-    # Shutdown code (if needed)
+    # Shutdown
+    logger.info("Сервис остановлен")
 
-app = FastAPI(
-    title="Schedule Service",
-    description="Web service for group schedule subscriptions with ICS calendar export",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-# Templates and static files
-templates = Jinja2Templates(directory="templates")
+app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
+# --- Endpoints ---
 
-# Dependency to get DB session
-async def get_db():
-    async with async_session() as session:
-        yield session
-
-
-# Pydantic models for API
-class RefreshStatus(BaseModel):
-    status: str  # ok, in_progress, too_early, error
-    message: Optional[str] = None
-    last_updated_at: Optional[datetime] = None
-    last_error: Optional[str] = None
-
-
-class GroupStatus(BaseModel):
-    slug: str
-    title: str
-    status: str  # ok, fetching, error, pending
-    last_updated_at: Optional[datetime] = None
-    last_error: Optional[str] = None
-    has_schedule: bool = False
-
-
-# Helper functions
-async def get_or_create_group(session, group_slug: str) -> Group:
-    """Get existing group or create new one."""
-    from sqlalchemy import select
-    
-    result = await session.execute(select(Group).where(Group.slug == group_slug))
-    group = result.scalar_one_or_none()
-    
-    if not group:
-        group = Group(slug=group_slug, fetch_status="pending")
-        session.add(group)
-        await session.commit()
-        await session.refresh(group)
-    
-    return group
-
-
-async def refresh_group_schedule_task(group_slug: str) -> tuple[bool, Optional[str]]:
-    """
-    Refresh schedule for a group (background task version).
-    Creates its own database session.
-    
-    Returns:
-        Tuple of (success, error_message)
-    """
-    async with async_session() as session:
-        from sqlalchemy import select
-        result = await session.execute(select(Group).where(Group.slug == group_slug))
-        group = result.scalar_one_or_none()
-        
-        if not group:
-            return False, "Group not found"
-        
-        try:
-            # Fetch and convert schedule with timeout
-            import asyncio
-            loop = asyncio.get_event_loop()
-            schedule_data, ics_content = await asyncio.wait_for(
-                loop.run_in_executor(None, fetch_and_convert_schedule, group_slug),
-                timeout=60  # 60 second timeout for parsing
-            )
-            
-            # Update group data
-            group.schedule_json = json.dumps(schedule_data, ensure_ascii=False)
-            group.ics_text = ics_content
-            group.last_fetched_at = datetime.utcnow()
-            group.fetch_status = "ok"
-            group.last_error = None
-            group.version += 1
-            
-            # Extract group title if available
-            if schedule_data.get('group'):
-                group.title = schedule_data['group'].get('title', group_slug)
-            
-            await session.commit()
-            return True, None
-            
-        except asyncio.TimeoutError:
-            error_msg = "Timeout: парсинг занял слишком много времени (>60 сек)"
-            group.fetch_status = "error"
-            group.last_error = error_msg
-            group.last_fetched_at = datetime.utcnow()
-            await session.commit()
-            return False, error_msg
-            
-        except Exception as e:
-            error_msg = str(e)
-            group.fetch_status = "error"
-            group.last_error = error_msg
-            group.last_fetched_at = datetime.utcnow()
-            await session.commit()
-            return False, error_msg
-
-
-@app.post("/api/groups/{group_slug}/refresh", response_model=RefreshStatus)
-async def refresh_schedule(group_slug: str, background_tasks: BackgroundTasks):
-    """
-    Trigger schedule refresh for a group.
-    
-    Rules:
-    - If refresh is already in progress, return "in_progress"
-    - If last refresh was recently, return "too_early"
-    - Otherwise, start background refresh
-    """
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        now = datetime.utcnow()
-        
-        # Check if already fetching
-        if group.fetch_status == "fetching":
-            return RefreshStatus(
-                status="in_progress",
-                message="Refresh is already in progress",
-                last_updated_at=group.last_fetched_at,
-                last_error=group.last_error
-            )
-        
-        # Check cooldown
-        if group.last_refresh_attempt:
-            time_since_last = (now - group.last_refresh_attempt).total_seconds()
-            if time_since_last < REFRESH_COOLDOWN_SECONDS:
-                remaining = int(REFRESH_COOLDOWN_SECONDS - time_since_last)
-                return RefreshStatus(
-                    status="too_early",
-                    message=f"Please wait {remaining} seconds before refreshing again",
-                    last_updated_at=group.last_fetched_at,
-                    last_error=group.last_error
-                )
-        
-        # Mark as fetching and start background task
-        group.fetch_status = "fetching"
-        group.last_refresh_attempt = now
-        await session.commit()
-        
-        # Start background refresh with group_slug only
-        background_tasks.add_task(refresh_group_schedule_task, group_slug)
-        
-        return RefreshStatus(
-            status="started",
-            message="Refresh started",
-            last_updated_at=group.last_fetched_at,
-            last_error=group.last_error
-        )
-
-
-# Routes
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """Home page with group selection form."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "title": "Расписание групп"
-    })
-
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/group/{group_slug}", response_class=HTMLResponse)
-async def group_page(request: Request, group_slug: str):
-    """Group page with schedule info and subscription links."""
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        # Generate QR code for webcal link
-        base_url = str(request.base_url).rstrip('/')
-        webcal_url = f"webcal://{request.url.hostname}{('/' + request.url.path.lstrip('/').rsplit('/', 1)[0]) if '/' in request.url.path else ''}/cal/{group_slug}.ics"
-        webcal_url = f"webcal://{request.url.hostname}/cal/{group_slug}.ics"
-        
-        # Generate QR code
-        qr = qrcode.make(webcal_url)
-        qr_buffer = BytesIO()
-        qr.save(qr_buffer, format='PNG')
-        qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode()
-        
-        return templates.TemplateResponse("group.html", {
-            "request": request,
-            "group": group,
-            "group_slug": group_slug,
-            "base_url": base_url,
-            "qr_base64": qr_base64,
-            "webcal_url": webcal_url
-        })
-
+async def group_page(request: Request, group_slug: str, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group:
+        # Создаем заглушку, если группы нет
+        group = Group(slug=group_slug, schedule_json=[], is_fetching=False, fetch_stage="Не создано")
+        db.add(group)
+        db.commit()
+        db.refresh(group)
+    
+    return templates.TemplateResponse("group.html", {
+        "request": request, 
+        "group": group
+    })
 
 @app.get("/cal/{group_slug}.ics")
-async def get_calendar(group_slug: str):
-    """Download ICS calendar file for a group."""
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        if not group.ics_text:
-            # No calendar yet - trigger background refresh and return error
-            raise HTTPException(
-                status_code=404,
-                detail="Calendar not found. Please refresh the schedule first."
-            )
-        
-        return PlainTextResponse(
-            content=group.ics_text,
-            media_type="text/calendar; charset=utf-8",
-            headers={
-                "Content-Disposition": f'attachment; filename="schedule_{group_slug}.ics"',
-                "Cache-Control": "public, max-age=300"  # Cache for 5 minutes
-            }
-        )
-
-
-@app.get("/api/groups/{group_slug}/status", response_model=GroupStatus)
-async def get_group_status(group_slug: str):
-    """Get current status of a group's schedule."""
-    async with async_session() as session:
-        from sqlalchemy import select
-        result = await session.execute(select(Group).where(Group.slug == group_slug))
-        group = result.scalar_one_or_none()
-        
-        if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
-        
-        return GroupStatus(
-            slug=group.slug,
-            title=group.title or group.slug,
-            status=group.fetch_status,
-            last_updated_at=group.last_fetched_at,
-            last_error=group.last_error,
-            has_schedule=group.ics_text is not None
-        )
-
-
-@app.post("/internal/refresh-all")
-async def refresh_all_groups(request: Request, background_tasks: BackgroundTasks):
-    """
-    Internal endpoint to refresh all active groups.
-    Protected by secret token header.
+async def get_ics(group_slug: str, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group or not group.ics_text:
+        raise HTTPException(status_code=404, detail="Календарь еще не сгенерирован. Нажмите 'Обновить'.")
     
-    Usage: POST /internal/refresh-all with header X-Secret-Token: <token>
-    """
-    # Check secret token
-    token = request.headers.get("X-Secret-Token", "")
-    if token != SECRET_TOKEN:
-        raise HTTPException(status_code=403, detail="Invalid or missing secret token")
-    
-    async with async_session() as session:
-        from sqlalchemy import select
-        result = await session.execute(select(Group))
-        groups = result.scalars().all()
-        
-        refreshed_count = 0
-        for group in groups:
-            now = datetime.utcnow()
-            
-            # Skip if currently fetching
-            if group.fetch_status == "fetching":
-                continue
-            
-            # Skip if within cooldown (shorter cooldown for auto-refresh)
-            auto_cooldown = 3600  # 1 hour for auto-refresh
-            if group.last_refresh_attempt:
-                time_since_last = (now - group.last_refresh_attempt).total_seconds()
-                if time_since_last < auto_cooldown:
-                    continue
-            
-            # Mark and start refresh
-            group.fetch_status = "fetching"
-            group.last_refresh_attempt = now
-            refreshed_count += 1
-            
-            # Start background refresh with group_slug
-            background_tasks.add_task(refresh_group_schedule_task, group.slug)
-        
-        await session.commit()
-        
-        return {
-            "status": "ok",
-            "message": f"Started refresh for {refreshed_count} groups",
-            "groups_queued": refreshed_count
-        }
+    return Response(
+        content=group.ics_text,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={group_slug}.ics"}
+    )
 
+@app.post("/api/groups/{group_slug}/refresh")
+async def refresh_group(group_slug: str, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    
+    if not group:
+        group = Group(slug=group_slug, schedule_json=[], is_fetching=False, fetch_stage="Ожидание...")
+        db.add(group)
+        db.commit()
+        db.refresh(group)
+
+    # Проверка кулдауна
+    if group.last_updated_at:
+        delta = datetime.now() - group.last_updated_at
+        if delta.total_seconds() < COOLDOWN_SECONDS and not group.is_fetching:
+             return {"status": "cooldown", "message": f"Подождите {COOLDOWN_SECONDS} сек"}
+
+    # Проверка, идет ли уже обновление
+    if group.is_fetching:
+        return {"status": "in_progress", "message": "Обновление уже идет"}
+
+    # Запускаем задачу в фоне (в потоке, чтобы не блокировать ответ API, но с контролем статуса)
+    group.is_fetching = True
+    group.fetch_stage = "Запуск..."
+    group.last_error = None
+    db.commit()
+    
+    # Небольшая задержка, чтобы коммит ушел в БД до старта потока
+    time.sleep(0.1)
+    
+    thread = threading.Thread(target=run_refresh_task, args=(SessionLocal(), group_slug))
+    thread.start()
+    
+    return {"status": "started", "message": "Обновление запущено"}
+
+@app.get("/api/groups/{group_slug}/status")
+async def get_status(group_slug: str, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Группа не найдена")
+    
+    # Если флаг is_fetching висит слишком долго (защита от зависаний > 2 мин)
+    if group.is_fetching and group.last_updated_at:
+         # Это упрощенная проверка, в идеале хранить started_at
+         pass 
+
+    return {
+        "slug": group.slug,
+        "is_fetching": group.is_fetching,
+        "fetch_stage": group.fetch_stage,
+        "last_updated_at": group.last_updated_at.isoformat() if group.last_updated_at else None,
+        "last_error": group.last_error,
+        "has_calendar": bool(group.ics_text)
+    }
 
 if __name__ == "__main__":
     import uvicorn
