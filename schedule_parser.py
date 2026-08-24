@@ -97,6 +97,9 @@ def json_to_df(data: Dict) -> pd.DataFrame:
     }
 
     combined_df = pd.DataFrame()
+    # ВАЖНО: сетка источника устроена так, что "строки" (week 1-6) — это дни недели
+    # (1=ПН, 2=ВТ, ..., 6=СБ), а "столбцы" (day 1-7) — номера пар (1=9:00 ... 7=19:50).
+    # Поэтому day (день недели) берём из week_num, а номер пары (lesson) — из day_num.
     days = [' ', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
     
     grid = data.get('grid', {})
@@ -112,10 +115,10 @@ def json_to_df(data: Dict) -> pd.DataFrame:
                     # Создаем DataFrame из занятий дня
                     temp_df = pd.DataFrame(day_lessons)
                     if not temp_df.empty:
-                        # Добавляем номер пары на основе позиции в списке
-                        # API возвращает занятия в порядке их следования (1-я, 2-я и т.д.)
-                        temp_df['lesson'] = list(range(1, len(temp_df) + 1))
-                        temp_df['day'] = days[day_num]
+                        # Номер пары = номер "столбца" сетки (определяет время занятия)
+                        temp_df['lesson'] = day_num
+                        # День недели = номер "строки" сетки
+                        temp_df['day'] = days[week_num]
                         combined_df = pd.concat([combined_df, temp_df], ignore_index=True)
 
     if combined_df.empty:
@@ -136,20 +139,23 @@ def json_to_df(data: Dict) -> pd.DataFrame:
     return combined_df
 
 
-def generate_uid(row: pd.Series, group_slug: str) -> str:
+def generate_uid(row: pd.Series, group_slug: str, event_date: Optional[str] = None) -> str:
     """
     Generate stable UID for an event based on its properties.
-    UID depends on: group + subject + date + time start + time end + location
-    
+    UID depends on: group + subject + actual event date + time start + time end + location
+
     This ensures that identical events get the same UID across updates,
-    preventing duplicate events in calendar clients.
+    preventing duplicate events in calendar clients. The actual event date is
+    included so that the same lesson on different dates gets different UIDs
+    (otherwise calendar clients collapse all occurrences into one event).
     """
     import hashlib
     
     # Get all components for UID generation
     subject = str(row.get('sbj', ''))
     teacher = str(row.get('teacher', ''))
-    date_start = row['dts'][0] if isinstance(row['dts'], list) else str(row.get('df', ''))
+    # actual event date (YYYY-MM-DD); fallback to range start
+    date_start = event_date or (row['dts'][0] if isinstance(row['dts'], list) else str(row.get('df', '')))
     date_end = row['dts'][1] if isinstance(row['dts'], list) else str(row.get('dt', ''))
     time_start = row['time_range'][0] if isinstance(row.get('time_range'), list) else '09:00'
     time_end = row['time_range'][1] if isinstance(row.get('time_range'), list) else '10:30'
@@ -215,8 +221,8 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
                     
                     summary = ' • '.join(summary_parts) if summary_parts else 'Занятие'
                     
-                    # Generate stable UID
-                    uid = generate_uid(row, group_slug)
+                    # Generate stable UID (based on the actual event date)
+                    uid = generate_uid(row, group_slug, current_date.strftime('%Y-%m-%d'))
                     
                     calendar.events.append(
                         Event(

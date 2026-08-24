@@ -1,66 +1,70 @@
-import os
-import json
-import asyncio
-import logging
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
-from contextlib import asynccontextmanager
+"""
+Schedule Service — FastAPI приложение.
 
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+Бизнес-логика парсинга и генерации ICS живёт в schedule_parser.py
+(проверенный рабочий парсер) и здесь НЕ переписывается: endpoint'ы просто
+вызывают schedule_parser.fetch_and_convert_schedule().
+
+Хранилище: SQLite, одна строка на группу (общая сущность):
+  - schedule_json — актуальный JSON расписания группы (один на группу);
+  - ics_text      — общий .ics-календарь группы (один на группу, подписка).
+Пользователи не создают отдельных копий календаря — ссылка одна на группу.
+
+Простота: FastAPI + SQLite + один процесс, без внешних сервисов —
+бесплатно хостится на Render / Railway / любой VPS.
+"""
+
+import json
+import logging
+import os
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, func
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from sqlalchemy.pool import StaticPool
-import aiohttp
-from bs4 import BeautifulSoup
-import icalendar
-from icalendar import Calendar, Event, vText
-import pytz
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
-# --- Конфигурация и Логирование ---
+from models import Base, Group
+from schedule_parser import fetch_and_convert_schedule
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./schedule.db")
+SECRET_TOKEN = os.getenv("SECRET_TOKEN", "change_this_secret_token")
+REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "60"))
 
 os.makedirs("static", exist_ok=True)
 os.makedirs("templates", exist_ok=True)
 
-DATABASE_URL = "sqlite:///./schedule.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
-# --- Модели БД ---
-class Group(Base):
-    __tablename__ = "groups"
 
-    id = Column(Integer, primary_key=True, index=True)
-    slug = Column(String, unique=True, index=True, nullable=False) # Например "242-621"
-    name = Column(String, nullable=True)
-    
-    schedule_json = Column(Text, nullable=True) # Храним JSON строкой
-    ics_text = Column(Text, nullable=True)      # Храним готовый ICS
-    
-    is_fetching = Column(Boolean, default=False)
-    fetch_status = Column(String, default="idle") # idle, fetching, success, error
-    fetch_step = Column(String, default="Ожидание...")
-    
-    last_updated_at = Column(DateTime, nullable=True)
-    last_error = Column(Text, nullable=True)
-    version = Column(Integer, default=0)
-
-# --- Инициализация БД ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    logger.info("База данных создана/проверена.")
+    # После перезапуска процесса никакой фонобновления не идёт —
+    # сбрасываем «зависшие» статусы fetching и таймер кулдауна.
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE groups SET fetch_status = "
+            "CASE WHEN ics_text IS NOT NULL THEN 'ok' ELSE 'pending' END "
+            "WHERE fetch_status = 'fetching'"
+        ))
+        conn.execute(text("UPDATE groups SET last_refresh_attempt = NULL"))
+    logger.info("База данных готова.")
     yield
 
-app = FastAPI(lifespan=lifespan, title="Schedule Service")
 
+app = FastAPI(lifespan=lifespan, title="Schedule Service")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
 
 def get_db():
     db = SessionLocal()
@@ -69,279 +73,179 @@ def get_db():
     finally:
         db.close()
 
-# --- Парсер (Твоя логика) ---
-# Вставь сюда свой рабочий код парсинга. 
-# Для примера заглушка, которая генерирует тестовые данные, если реальный URL не доступен или логика сложная.
-# ЗАМЕНИ ЭТУ ФУНКЦИЮ НА СВОЙ РЕАЛЬНЫЙ ПАРСЕР
-async def parse_schedule_from_source(group_slug: str) -> Dict[str, Any]:
-    """
-    Возвращает словарь вида:
-    {
-        "group_name": "242-621",
-        "lessons": [
-            {
-                "subject": "Математика",
-                "date": "2023-10-23", # YYYY-MM-DD
-                "start_time": "09:00",
-                "end_time": "10:30",
-                "location": "Ауд. 101",
-                "teacher": "Иванов"
-            },
-            ...
-        ]
-    }
-    """
-    logger.info(f"[PARSER] Запуск парсинга для группы {group_slug}")
-    
-    # TODO: Вставь сюда свой реальный код парсинга через aiohttp и BeautifulSoup
-    # Пример реальной логики (раскомментировать и адаптировать):
-    """
-    url = f"https://site.ru/schedule/{group_slug}"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, timeout=10) as response:
-            if response.status != 200:
-                raise Exception(f"Ошибка загрузки страницы: {response.status}")
-            html = await response.text()
-            soup = BeautifulSoup(html, 'html.parser')
-            # ... парсинг soup ...
-    """
-    
-    # ЗАГЛУШКА ДЛЯ ТЕСТА (УДАЛИТЬ ПРИ ПРОДЕ)
-    await asyncio.sleep(1) # Имитация сети
-    import random
-    if group_slug == "error":
-        raise Exception("Тестовая ошибка парсинга")
-    
-    lessons = []
-    # Генерируем 2 пары на ближайший понедельник для теста
-    today = datetime.now()
-    # Найдем ближайший понедельник
-    days_until_monday = (0 - today.weekday()) % 7
-    if days_until_monday == 0: days_until_monday = 7 # Если сегодня пн, берем следующий
-    next_monday = today + timedelta(days=days_until_monday)
-    
-    lessons.append({
-        "subject": "Веб-разработка (Пара 1)",
-        "date": next_monday.strftime("%Y-%m-%d"),
-        "start_time": "09:00",
-        "end_time": "10:30",
-        "location": "Компьютерный класс",
-        "teacher": "Преподаватель 1"
-    })
-    lessons.append({
-        "subject": "Базы данных (Пара 2)",
-        "date": next_monday.strftime("%Y-%m-%d"),
-        "start_time": "10:45",
-        "end_time": "12:15",
-        "location": "Аудитория 202",
-        "teacher": "Преподаватель 2"
-    })
-    
-    logger.info(f"[PARSER] Найдено {len(lessons)} занятий.")
-    return {
-        "group_name": group_slug,
-        "lessons": lessons
-    }
 
-def generate_ics(data: Dict[str, Any], group_slug: str) -> str:
-    """Генерирует ICS контент из распарсенных данных."""
-    cal = Calendar()
-    cal.add('prodid', f'-//Schedule Service//{group_slug}//RU')
-    cal.add('version', '2.0')
-    cal.add('calscale', 'GREGORIAN')
-    cal.add('method', 'PUBLISH')
-    cal.add('x-wr-calname', f'Расписание {group_slug}')
-
-    tz = pytz.timezone('Europe/Moscow') # Или твой часовой пояс
-
-    for lesson in data.get('lessons', []):
-        event = Event()
-        subject = lesson.get('subject', 'Без названия')
-        date_str = lesson.get('date')
-        start_str = lesson.get('start_time', '09:00')
-        end_str = lesson.get('end_time', '10:30')
-        location = lesson.get('location', '')
-        
-        if not date_str:
-            continue
-            
-        # Парсинг даты и времени
-        try:
-            dt_start = datetime.strptime(f"{date_str} {start_str}", "%Y-%m-%d %H:%M")
-            dt_end = datetime.strptime(f"{date_str} {end_str}", "%Y-%m-%d %H:%M")
-            
-            # Локализуем время
-            dt_start = tz.localize(dt_start)
-            dt_end = tz.localize(dt_end)
-            
-            event.add('summary', subject)
-            event.add('dtstart', dt_start)
-            event.add('dtend', dt_end)
-            event.add('dtstamp', datetime.now(tz))
-            
-            if location:
-                event.add('location', location)
-            
-            # Стабильный UID
-            uid_str = f"{group_slug}-{subject}-{date_str}-{start_str}-{end_str}-{location}"
-            # Простая хеш-сумма или очистка для UID
-            import hashlib
-            uid_hash = hashlib.md5(uid_str.encode('utf-8')).hexdigest()
-            event.add('uid', f"{uid_hash}@schedule.service")
-            
-            cal.add_component(event)
-        except Exception as e:
-            logger.error(f"Ошибка при создании события: {e}")
-            continue
-
-    return cal.to_ical().decode('utf-8')
-
-# --- Эндпоинты ---
-
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/group/{group_slug}", response_class=HTMLResponse)
-async def get_group_page(request: Request, group_slug: str, db: Session = Depends(get_db)):
+def get_or_create_group(db: Session, group_slug: str) -> Group:
+    """Одна запись на группу — общая сущность для всех пользователей."""
     group = db.query(Group).filter(Group.slug == group_slug).first()
     if not group:
-        # Создаем запись, если нет
-        group = Group(slug=group_slug, name=group_slug, fetch_status="idle")
+        group = Group(slug=group_slug, fetch_status="pending")
         db.add(group)
         db.commit()
         db.refresh(group)
-    
-    return templates.TemplateResponse("group.html", {
-        "request": request, 
-        "group": group,
-        "has_schedule": group.schedule_json is not None
-    })
+    return group
 
-@app.get("/cal/{group_slug}.ics", response_class=PlainTextResponse)
-async def get_calendar(group_slug: str, db: Session = Depends(get_db)):
-    group = db.query(Group).filter(Group.slug == group_slug).first()
-    if not group or not group.ics_text:
-        raise HTTPException(status_code=404, detail="Календарь еще не сгенерирован. Нажмите 'Обновить'.")
-    
-    return PlainTextResponse(
-        content=group.ics_text,
-        media_type="text/calendar; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename=schedule_{group_slug}.ics"}
-    )
 
-@app.get("/api/groups/{group_slug}/status")
-async def get_status(group_slug: str, db: Session = Depends(get_db)):
-    group = db.query(Group).filter(Group.slug == group_slug).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Группа не найдена")
-    
-    return {
-        "slug": group.slug,
-        "name": group.name,
-        "is_fetching": group.is_fetching,
-        "fetch_status": group.fetch_status,
-        "fetch_step": group.fetch_step,
-        "last_updated_at": group.last_updated_at.isoformat() if group.last_updated_at else None,
-        "last_error": group.last_error,
-        "has_schedule": group.schedule_json is not None
-    }
-
-@app.post("/api/groups/{group_slug}/refresh")
-async def refresh_schedule(group_slug: str, db: Session = Depends(get_db)):
+def refresh_group(db: Session, group: Group) -> dict:
     """
-    Синхронное обновление. Запрос висит пока не обновится или не упадет.
-    Это гарантирует, что после ответа 200 OK данные в базе актуальны.
+    Синхронно обновляет расписание группы через рабочий парсер.
+    Возвращает словарь-статус для API.
     """
-    group = db.query(Group).filter(Group.slug == group_slug).first()
-    if not group:
-        group = Group(slug=group_slug, name=group_slug)
-        db.add(group)
-        db.commit()
-        db.refresh(group)
+    # Кулдаун между ручными обновлениями (защита источника от частых запросов)
+    if group.last_refresh_attempt and group.fetch_status == "ok":
+        delta = datetime.utcnow() - group.last_refresh_attempt
+        if delta < timedelta(seconds=REFRESH_COOLDOWN_SECONDS):
+            return {
+                "status": "cooldown",
+                "message": f"Подождите ещё {max(1, int((REFRESH_COOLDOWN_SECONDS - delta.total_seconds())))} секунд",
+            }
 
-    # Проверка кулдауна (1 минута)
-    if group.last_updated_at:
-        delta = datetime.now() - group.last_updated_at
-        if delta.total_seconds() < 60 and group.fetch_status == "success":
-            return {"status": "cooldown", "message": "Подождите 1 минуту перед следующим обновлением"}
-
-    if group.is_fetching:
-        return {"status": "in_progress", "message": "Обновление уже идет"}
-
-    # Блокируем
-    group.is_fetching = True
     group.fetch_status = "fetching"
-    group.fetch_step = "Подготовка..."
-    group.last_error = None
+    group.last_refresh_attempt = datetime.utcnow()
     db.commit()
 
     try:
-        logger.info(f"[REFRESH] Начало обновления для {group_slug}")
-        
-        # Этап 1: Загрузка и парсинг
-        group.fetch_step = "Загрузка данных с источника..."
-        db.commit()
-        
-        data = await parse_schedule_from_source(group_slug)
-        
-        # Этап 2: Сохранение JSON
-        group.fetch_step = "Сохранение JSON..."
-        db.commit()
-        group.schedule_json = json.dumps(data, ensure_ascii=False)
-        group.name = data.get("group_name", group_slug)
-        
-        # Этап 3: Генерация ICS
-        group.fetch_step = "Генерация календаря (.ics)..."
-        db.commit()
-        ics_content = generate_ics(data, group_slug)
+        # Единственное место вызова бизнес-логики парсинга:
+        schedule_data, ics_content = fetch_and_convert_schedule(group.slug)
+
+        group.schedule_json = json.dumps(schedule_data, ensure_ascii=False)
         group.ics_text = ics_content
-        
-        # Финал
-        group.last_updated_at = datetime.now()
-        group.fetch_status = "success"
-        group.fetch_step = "Готово"
+        group.title = (schedule_data.get("group") or {}).get("title") or group.slug
+        group.last_fetched_at = datetime.utcnow()
+        group.last_error = None
+        group.fetch_status = "ok"
         group.version += 1
-        logger.info(f"[REFRESH] Успешно обновлено для {group_slug}")
-        
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"[REFRESH] Ошибка для {group_slug}: {error_msg}", exc_info=True)
-        group.fetch_status = "error"
-        group.fetch_step = "Ошибка"
-        group.last_error = error_msg
-        # Не сбрасываем старые данные, если они были
-        if not group.schedule_json:
-            group.ics_text = None # Если это первый запуск и ошибка, то календаря нет
-            
-    finally:
-        group.is_fetching = False
         db.commit()
 
-    if group.fetch_status == "error":
-        # Возвращаем ошибку клиенту, но с кодом 200 (или можно 500, но фронтенд проще так)
-        return {"status": "error", "message": group.last_error, "step": group.fetch_step}
-    
-    return {"status": "success", "message": "Расписание обновлено", "updated_at": group.last_updated_at}
+        logger.info(f"[REFRESH] {group.slug}: ok ({len(ics_content)} bytes ICS)")
+        return {
+            "status": "success",
+            "message": "Расписание обновлено",
+            "updated_at": group.last_fetched_at.isoformat(),
+        }
+    except Exception as e:
+        # Старые данные (если были) сохраняются — календарь продолжает отдаваться
+        logger.error(f"[REFRESH] {group.slug}: {e}", exc_info=True)
+        group.fetch_status = "error"
+        group.last_error = str(e)
+        db.commit()
+        return {"status": "error", "message": str(e)}
+
+
+# --- Страницы ---
+
+DAY_ORDER = {'ПН': 1, 'ВТ': 2, 'СР': 3, 'ЧТ': 4, 'ПТ': 5, 'СБ': 6, 'ВС': 7}
+
+
+def build_schedule_table(schedule_json_str: Optional[str]) -> list:
+    """
+    Превращает сохранённый JSON расписания в список строк для таблицы предпросмотра.
+    Переиспользует рабочий парсер (schedule_parser.json_to_df) — логика не дублируется.
+    """
+    if not schedule_json_str:
+        return []
+    try:
+        import schedule_parser
+
+        data = json.loads(schedule_json_str)
+        df = schedule_parser.json_to_df(data)
+        if df.empty:
+            return []
+
+        rows = []
+        seen = set()
+        for _, r in df.iterrows():
+            dts = r.get('dts')
+            period = ' – '.join(dts) if isinstance(dts, list) and len(dts) == 2 else ''
+            time_range = r.get('time_range')
+            time_str = '–'.join(time_range) if isinstance(time_range, list) and len(time_range) == 2 else ''
+
+            key = (
+                r.get('day'), r.get('sbj'), r.get('teacher'), period, time_str,
+                r.get('type'), r.get('location'),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+
+            rows.append({
+                'day': str(r.get('day') or ''),
+                'time': time_str,
+                'period': period,
+                'subject': str(r.get('sbj') or ''),
+                'type': str(r.get('type') or ''),
+                'teacher': str(r.get('teacher') or '').strip(),
+                'location': str(r.get('location') or ''),
+            })
+
+        rows.sort(key=lambda x: (DAY_ORDER.get(x['day'], 99), x['time'], x['subject']))
+        return rows
+    except Exception as e:
+        logger.warning(f"[TABLE] Не удалось построить предпросмотр: {e}")
+        return []
+
+
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "title": "Расписание групп"}
+    )
+
+
+@app.get("/group/{group_slug}", response_class=HTMLResponse)
+def group_page(request: Request, group_slug: str, db: Session = Depends(get_db)):
+    group = get_or_create_group(db, group_slug)
+    return templates.TemplateResponse("group.html", {
+        "request": request,
+        "group": group,
+        "has_schedule": group.schedule_json is not None,
+        "lessons": build_schedule_table(group.schedule_json),
+    })
+
+
+# --- Подписка на календарь ---
+
+@app.get("/cal/{group_slug}.ics", response_class=PlainTextResponse)
+def get_calendar(group_slug: str, db: Session = Depends(get_db)):
+    """Один общий .ics на группу — все подписчики получают одну и ту же ссылку."""
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group or not group.ics_text:
+        raise HTTPException(
+            status_code=404,
+            detail="Календарь ещё не сгенерирован. Нажмите «Обновить расписание».",
+        )
+    return PlainTextResponse(
+        content=group.ics_text,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="schedule_{group_slug}.ics"'},
+    )
+
+
+# --- API ---
+
+@app.get("/api/groups/{group_slug}/status")
+def group_status(group_slug: str, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Группа не найдена")
+    return group.to_dict()
+
+
+@app.post("/api/groups/{group_slug}/refresh")
+def refresh_schedule(group_slug: str, db: Session = Depends(get_db)):
+    group = get_or_create_group(db, group_slug)
+    return refresh_group(db, group)
+
 
 @app.post("/internal/refresh-all")
-async def refresh_all(request: Request, db: Session = Depends(get_db)):
-    # Простая защита по токену
+def refresh_all(request: Request, db: Session = Depends(get_db)):
+    """Обновление всех известных групп для внешнего cron (GitHub Actions и т.п.)."""
     token = request.headers.get("X-Secret-Token")
-    if token != os.getenv("SECRET_TOKEN", "admin"):
+    if token != SECRET_TOKEN:
         raise HTTPException(status_code=403, detail="Unauthorized")
-    
+
     groups = db.query(Group).all()
-    count = 0
-    for g in groups:
-        # Запускаем фоново или последовательно? Для крона лучше последовательно с таймаутом
-        # Но здесь упростим: просто помечаем, что нужно обновить, или вызываем логику
-        # Для прода лучше вынести в отдельную задачу Celery/RQ, но для MVP:
-        try:
-            # Рекурсивный вызов логики был бы плох, лучше дублировать код или вынести в сервис
-            # Для краткости оставим как есть, в реальном проде вынесите логику парсинга в сервис
-            pass 
-        except:
-            pass
-        count += 1
-    return {"refreshed": count}
+    results = []
+    for group in groups:
+        res = refresh_group(db, group)
+        results.append({"slug": group.slug, **res})
+    return {"refreshed": len(groups), "results": results}
