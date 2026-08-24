@@ -4,7 +4,7 @@ Reuses the existing code from MPY_timetable.ipynb notebook.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -97,6 +97,9 @@ def json_to_df(data: Dict) -> pd.DataFrame:
     }
 
     combined_df = pd.DataFrame()
+    # ВАЖНО: сетка источника устроена так, что "строки" (week 1-6) — это дни недели
+    # (1=ПН, 2=ВТ, ..., 6=СБ), а "столбцы" (day 1-7) — номера пар (1=9:00 ... 7=19:50).
+    # Поэтому day (день недели) берём из week_num, а номер пары (lesson) — из day_num.
     days = [' ', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
     
     grid = data.get('grid', {})
@@ -107,61 +110,52 @@ def json_to_df(data: Dict) -> pd.DataFrame:
             day_key = str(day_num)
             
             if week_key in grid and day_key in grid[week_key]:
-                temp_df = pd.DataFrame(grid[week_key][day_key])
-                if not temp_df.empty:
-                    temp_df['lesson'] = day_num
-                    temp_df['day'] = days[day_num]
-                    combined_df = pd.concat([combined_df, temp_df], ignore_index=True)
+                day_lessons = grid[week_key][day_key]
+                if day_lessons:
+                    # Создаем DataFrame из занятий дня
+                    temp_df = pd.DataFrame(day_lessons)
+                    if not temp_df.empty:
+                        # Номер пары = номер "столбца" сетки (определяет время занятия)
+                        temp_df['lesson'] = day_num
+                        # День недели = номер "строки" сетки
+                        temp_df['day'] = days[week_num]
+                        combined_df = pd.concat([combined_df, temp_df], ignore_index=True)
 
     if combined_df.empty:
         return combined_df
 
-    # Select relevant columns (only if they exist)
-    expected_cols = [0, 1, 2, 3, 4, 9, 10]
-    available_cols = [i for i in expected_cols if i < len(combined_df.columns)]
-    if len(available_cols) >= 5:  # Need at least basic columns
-        combined_df = combined_df.iloc[:, available_cols[:7]]
-    else:
-        # Keep all columns if we don't have enough
-        pass
-
     # Parse date ranges
     combined_df['dts'] = combined_df['dts'].apply(parse_date_range)
 
-    # Extract time ranges
+    # Extract time ranges based on lesson position
     def extract_times(lesson_number: int) -> List[str]:
         time_range = lessons_times.get(lesson_number, '9:00-10:30')
         start_time, end_time = time_range.split('-')
         return [start_time, end_time]
 
-    # Only add time_range if lesson column exists
-    if 'lesson' in combined_df.columns:
-        combined_df['time_range'] = combined_df['lesson'].apply(extract_times)
-    else:
-        # Default time range if lesson column missing
-        combined_df['time_range'] = [['9:00', '10:30']] * len(combined_df)
-    
-    # Ensure 'day' column exists (for ical_gen)
-    if 'day' not in combined_df.columns:
-        combined_df['day'] = 'ПН'  # Default to Monday
+    # Add time_range column
+    combined_df['time_range'] = combined_df['lesson'].apply(extract_times)
     
     return combined_df
 
 
-def generate_uid(row: pd.Series, group_slug: str) -> str:
+def generate_uid(row: pd.Series, group_slug: str, event_date: Optional[str] = None) -> str:
     """
     Generate stable UID for an event based on its properties.
-    UID depends on: group + subject + date + time start + time end + location
-    
+    UID depends on: group + subject + actual event date + time start + time end + location
+
     This ensures that identical events get the same UID across updates,
-    preventing duplicate events in calendar clients.
+    preventing duplicate events in calendar clients. The actual event date is
+    included so that the same lesson on different dates gets different UIDs
+    (otherwise calendar clients collapse all occurrences into one event).
     """
     import hashlib
     
     # Get all components for UID generation
     subject = str(row.get('sbj', ''))
     teacher = str(row.get('teacher', ''))
-    date_start = row['dts'][0] if isinstance(row['dts'], list) else str(row.get('df', ''))
+    # actual event date (YYYY-MM-DD); fallback to range start
+    date_start = event_date or (row['dts'][0] if isinstance(row['dts'], list) else str(row.get('df', '')))
     date_end = row['dts'][1] if isinstance(row['dts'], list) else str(row.get('dt', ''))
     time_start = row['time_range'][0] if isinstance(row.get('time_range'), list) else '09:00'
     time_end = row['time_range'][1] if isinstance(row.get('time_range'), list) else '10:30'
@@ -192,7 +186,7 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
     days_mapping = {
         'ПН': 0, 'ВТ': 1, 'СР': 2, 'ЧТ': 3, 'ПТ': 4, 'СБ': 5, 'ВС': 6
     }
-    timezone = pytz.timezone("Europe/Moscow")
+    tz = pytz.timezone("Europe/Moscow")
     
     if df.empty:
         # Return empty calendar with proper header
@@ -213,30 +207,38 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
                     start_datetime = datetime.combine(current_date, start_time)
                     end_datetime = datetime.combine(current_date, end_time)
 
-                    start_datetime = timezone.localize(start_datetime)
-                    end_datetime = timezone.localize(end_datetime)
+                    start_datetime = tz.localize(start_datetime)
+                    end_datetime = tz.localize(end_datetime)
                     
-                    # Build summary: Subject • Location • Teacher
+                    # Build summary: Subject • Type • Teacher.
+                    # Тип занятия важен (особенно электронный формат «эор»),
+                    # а локация уже есть в отдельном поле LOCATION — в заголовок её не дублируем.
                     summary_parts = []
                     if row.get('sbj'):
                         summary_parts.append(str(row['sbj']))
-                    if row.get('location'):
-                        summary_parts.append(str(row['location']))
+                    lesson_type = str(row.get('type') or '').strip()
+                    if lesson_type:
+                        # "Лекция эор" -> "Лекция (эор)" — маркер электронного формата в скобках
+                        if lesson_type.endswith(' эор'):
+                            lesson_type = f"{lesson_type[:-4].strip()} (эор)"
+                        summary_parts.append(lesson_type)
                     if row.get('teacher'):
                         summary_parts.append(str(row['teacher']))
                     
                     summary = ' • '.join(summary_parts) if summary_parts else 'Занятие'
                     
-                    # Generate stable UID
-                    uid = generate_uid(row, group_slug)
+                    # Generate stable UID (based on the actual event date)
+                    uid = generate_uid(row, group_slug, current_date.strftime('%Y-%m-%d'))
                     
+                    # DTSTAMP по RFC 5545 должен быть в UTC (с суффиксом Z)
                     calendar.events.append(
                         Event(
                             summary=summary,
                             dtstart=start_datetime,
                             dtend=end_datetime,
                             location=str(row.get('location', '')),
-                            uid=uid
+                            uid=uid,
+                            dtstamp=datetime.now(timezone.utc),
                         )
                     )
                 current_date += timedelta(days=1)

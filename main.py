@@ -1,313 +1,329 @@
 """
-Main FastAPI application for the schedule service.
+Schedule Service — FastAPI приложение.
+
+Бизнес-логика парсинга и генерации ICS живёт в schedule_parser.py
+(проверенный рабочий парсер) и здесь НЕ переписывается: endpoint'ы просто
+вызывают schedule_parser.fetch_and_convert_schedule().
+
+Хранилище: SQLite, одна строка на группу (общая сущность):
+  - schedule_json — актуальный JSON расписания группы (один на группу);
+  - ics_text      — общий .ics-календарь группы (один на группу, подписка).
+Пользователи не создают отдельных копий календаря — ссылка одна на группу.
+
+Простота: FastAPI + SQLite + один процесс, без внешних сервисов —
+бесплатно хостится на Render / Railway / любой VPS.
 """
 
-import os
+import asyncio
 import json
+import logging
+import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+import pytz
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import qrcode
-from io import BytesIO
-import base64
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
-from models import create_database_engine, Group
+from models import Base, Group
 from schedule_parser import fetch_and_convert_schedule
 
-# Configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./schedule.db")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./schedule.db")
 SECRET_TOKEN = os.getenv("SECRET_TOKEN", "change_this_secret_token")
-REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "300"))  # 5 minutes default
+REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "60"))
+# Период автообновления всех групп (по умолчанию — раз в неделю)
+REFRESH_INTERVAL_SECONDS = int(os.getenv("REFRESH_INTERVAL_SECONDS", str(7 * 24 * 3600)))
 
-# Initialize database
-engine, async_session, init_db = create_database_engine(DATABASE_URL)
+# Группы, которые сервис «сажает» при старте (чтобы календари существовали
+# даже после того, как Render стёр базу при перезапуске)
+POPULAR_GROUPS = ["242-621", "242-521", "242-421", "242-321"]
 
-# Ensure static directory exists
 os.makedirs("static", exist_ok=True)
+os.makedirs("templates", exist_ok=True)
 
-# Initialize FastAPI app
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def seed_popular_groups() -> None:
+    """Создаёт записи популярных групп, если их ещё нет."""
+    db = SessionLocal()
+    try:
+        for slug in POPULAR_GROUPS:
+            get_or_create_group(db, slug)
+    finally:
+        db.close()
+
+
+def refresh_missing_schedules() -> None:
+    """Обновляет группы, у которых ещё нет календаря (после старта/рестарта)."""
+    db = SessionLocal()
+    try:
+        for group in db.query(Group).all():
+            if group.ics_text is None:
+                refresh_group(db, group)
+    finally:
+        db.close()
+
+
+def refresh_all_schedules() -> None:
+    """Обновляет расписание всех групп (еженедельный таск)."""
+    db = SessionLocal()
+    try:
+        for group in db.query(Group).all():
+            refresh_group(db, group)
+    finally:
+        db.close()
+
+
+async def scheduler_loop() -> None:
+    """Фоновая задача: посев групп + автообновление раз в REFRESH_INTERVAL_SECONDS."""
+    try:
+        await asyncio.to_thread(seed_popular_groups)
+        await asyncio.to_thread(refresh_missing_schedules)
+        logger.info("[SCHED] Стартовое заполнение групп выполнено.")
+    except Exception as e:
+        logger.error(f"[SCHED] Стартовое заполнение: {e}", exc_info=True)
+
+    while True:
+        await asyncio.sleep(REFRESH_INTERVAL_SECONDS)
+        try:
+            await asyncio.to_thread(refresh_all_schedules)
+            logger.info("[SCHED] Еженедельное обновление всех групп выполнено.")
+        except Exception as e:
+            logger.error(f"[SCHED] Еженедельное обновление: {e}", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup and shutdown events."""
-    # Startup code
-    await init_db()
+    Base.metadata.create_all(bind=engine)
+    # После перезапуска процесса никакой фонобновления не идёт —
+    # сбрасываем «зависшие» статусы fetching и таймер кулдауна.
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE groups SET fetch_status = "
+            "CASE WHEN ics_text IS NOT NULL THEN 'ok' ELSE 'pending' END "
+            "WHERE fetch_status = 'fetching'"
+        ))
+        conn.execute(text("UPDATE groups SET last_refresh_attempt = NULL"))
+    logger.info("База данных готова.")
+    # Фоновая задача автообновления (стартует, не блокируя приложение)
+    scheduler_task = asyncio.create_task(scheduler_loop())
     yield
-    # Shutdown code (if needed)
+    scheduler_task.cancel()
 
-app = FastAPI(
-    title="Schedule Service",
-    description="Web service for group schedule subscriptions with ICS calendar export",
-    version="1.0.0",
-    lifespan=lifespan
-)
 
-# Templates and static files
-templates = Jinja2Templates(directory="templates")
+app = FastAPI(lifespan=lifespan, title="Schedule Service")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# --- Часовой пояс ---
+# Расписание — московское, поэтому время для отображения приводим к Europe/Moscow.
+# В БД храним UTC (datetime.utcnow), а форматируем уже в Москве.
+MOSCOW_TZ = pytz.timezone("Europe/Moscow")
 
 
-# Dependency to get DB session
-async def get_db():
-    async with async_session() as session:
-        yield session
+def format_moscow_time(dt: Optional[datetime]) -> str:
+    """Форматирует время из БД (UTC) в московское для показа на странице."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(MOSCOW_TZ).strftime("%d.%m.%Y %H:%M")
 
 
-# Pydantic models for API
-class RefreshStatus(BaseModel):
-    status: str  # ok, in_progress, too_early, error
-    message: Optional[str] = None
-    last_updated_at: Optional[datetime] = None
-    last_error: Optional[str] = None
+templates.env.filters["moscow_time"] = format_moscow_time
 
 
-class GroupStatus(BaseModel):
-    slug: str
-    title: str
-    status: str  # ok, fetching, error, pending
-    last_updated_at: Optional[datetime] = None
-    last_error: Optional[str] = None
-    has_schedule: bool = False
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
-# Helper functions
-async def get_or_create_group(session, group_slug: str) -> Group:
-    """Get existing group or create new one."""
-    from sqlalchemy import select
-    
-    result = await session.execute(select(Group).where(Group.slug == group_slug))
-    group = result.scalar_one_or_none()
-    
+def get_or_create_group(db: Session, group_slug: str) -> Group:
+    """Одна запись на группу — общая сущность для всех пользователей."""
+    group = db.query(Group).filter(Group.slug == group_slug).first()
     if not group:
         group = Group(slug=group_slug, fetch_status="pending")
-        session.add(group)
-        await session.commit()
-        await session.refresh(group)
-    
+        db.add(group)
+        db.commit()
+        db.refresh(group)
     return group
 
 
-async def refresh_group_schedule(session, group: Group) -> tuple[bool, Optional[str]]:
+def refresh_group(db: Session, group: Group) -> dict:
     """
-    Refresh schedule for a group.
-    
-    Returns:
-        Tuple of (success, error_message)
+    Синхронно обновляет расписание группы через рабочий парсер.
+    Возвращает словарь-статус для API.
     """
+    # Кулдаун между ручными обновлениями (защита источника от частых запросов)
+    if group.last_refresh_attempt and group.fetch_status == "ok":
+        delta = datetime.utcnow() - group.last_refresh_attempt
+        if delta < timedelta(seconds=REFRESH_COOLDOWN_SECONDS):
+            return {
+                "status": "cooldown",
+                "message": f"Подождите ещё {max(1, int((REFRESH_COOLDOWN_SECONDS - delta.total_seconds())))} секунд",
+            }
+
+    group.fetch_status = "fetching"
+    group.last_refresh_attempt = datetime.utcnow()
+    db.commit()
+
     try:
-        # Fetch and convert schedule
+        # Единственное место вызова бизнес-логики парсинга:
         schedule_data, ics_content = fetch_and_convert_schedule(group.slug)
-        
-        # Update group data
+
         group.schedule_json = json.dumps(schedule_data, ensure_ascii=False)
         group.ics_text = ics_content
+        group.title = (schedule_data.get("group") or {}).get("title") or group.slug
         group.last_fetched_at = datetime.utcnow()
-        group.fetch_status = "ok"
         group.last_error = None
+        group.fetch_status = "ok"
         group.version += 1
-        
-        # Extract group title if available
-        if schedule_data.get('group'):
-            group.title = schedule_data['group'].get('title', group.slug)
-        
-        await session.commit()
-        return True, None
-        
+        db.commit()
+
+        logger.info(f"[REFRESH] {group.slug}: ok ({len(ics_content)} bytes ICS)")
+        return {
+            "status": "success",
+            "message": "Расписание обновлено",
+            "updated_at": group.last_fetched_at.isoformat(),
+        }
     except Exception as e:
-        error_msg = str(e)
+        # Старые данные (если были) сохраняются — календарь продолжает отдаваться
+        logger.error(f"[REFRESH] {group.slug}: {e}", exc_info=True)
         group.fetch_status = "error"
-        group.last_error = error_msg
-        group.last_fetched_at = datetime.utcnow()
-        await session.commit()
-        return False, error_msg
+        group.last_error = str(e)
+        db.commit()
+        return {"status": "error", "message": str(e)}
 
 
-# Routes
+# --- Страницы ---
+
+DAY_ORDER = {'ПН': 1, 'ВТ': 2, 'СР': 3, 'ЧТ': 4, 'ПТ': 5, 'СБ': 6, 'ВС': 7}
+
+
+def build_schedule_table(schedule_json_str: Optional[str]) -> list:
+    """
+    Превращает сохранённый JSON расписания в список строк для таблицы предпросмотра.
+    Переиспользует рабочий парсер (schedule_parser.json_to_df) — логика не дублируется.
+    """
+    if not schedule_json_str:
+        return []
+    try:
+        import schedule_parser
+
+        data = json.loads(schedule_json_str)
+        df = schedule_parser.json_to_df(data)
+        if df.empty:
+            return []
+
+        rows = []
+        seen = set()
+        for _, r in df.iterrows():
+            dts = r.get('dts')
+            period = ' – '.join(dts) if isinstance(dts, list) and len(dts) == 2 else ''
+            time_range = r.get('time_range')
+            time_str = '–'.join(time_range) if isinstance(time_range, list) and len(time_range) == 2 else ''
+
+            key = (
+                r.get('day'), r.get('sbj'), r.get('teacher'), period, time_str,
+                r.get('type'), r.get('location'),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+
+            rows.append({
+                'day': str(r.get('day') or ''),
+                'time': time_str,
+                'period': period,
+                'subject': str(r.get('sbj') or ''),
+                'type': str(r.get('type') or ''),
+                'teacher': str(r.get('teacher') or '').strip(),
+                'location': str(r.get('location') or ''),
+            })
+
+        rows.sort(key=lambda x: (DAY_ORDER.get(x['day'], 99), x['time'], x['subject']))
+        return rows
+    except Exception as e:
+        logger.warning(f"[TABLE] Не удалось построить предпросмотр: {e}")
+        return []
+
+
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    """Home page with group selection form."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "title": "Расписание групп"
-    })
+def read_root(request: Request):
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "title": "Расписание групп"}
+    )
 
 
 @app.get("/group/{group_slug}", response_class=HTMLResponse)
-async def group_page(request: Request, group_slug: str):
-    """Group page with schedule info and subscription links."""
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        # Generate QR code for webcal link
-        base_url = str(request.base_url).rstrip('/')
-        webcal_url = f"webcal://{request.url.hostname}{('/' + request.url.path.lstrip('/').rsplit('/', 1)[0]) if '/' in request.url.path else ''}/cal/{group_slug}.ics"
-        webcal_url = f"webcal://{request.url.hostname}/cal/{group_slug}.ics"
-        
-        # Generate QR code
-        qr = qrcode.make(webcal_url)
-        qr_buffer = BytesIO()
-        qr.save(qr_buffer, format='PNG')
-        qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode()
-        
-        return templates.TemplateResponse("group.html", {
-            "request": request,
-            "group": group,
-            "group_slug": group_slug,
-            "base_url": base_url,
-            "qr_base64": qr_base64,
-            "webcal_url": webcal_url
-        })
+def group_page(request: Request, group_slug: str, db: Session = Depends(get_db)):
+    group = get_or_create_group(db, group_slug)
+    return templates.TemplateResponse("group.html", {
+        "request": request,
+        "group": group,
+        "has_schedule": group.schedule_json is not None,
+        "lessons": build_schedule_table(group.schedule_json),
+    })
 
 
-@app.get("/cal/{group_slug}.ics")
-async def get_calendar(group_slug: str):
-    """Download ICS calendar file for a group."""
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        if not group.ics_text:
-            # No calendar yet - trigger background refresh and return error
-            raise HTTPException(
-                status_code=404,
-                detail="Calendar not found. Please refresh the schedule first."
-            )
-        
-        return PlainTextResponse(
-            content=group.ics_text,
-            media_type="text/calendar; charset=utf-8",
-            headers={
-                "Content-Disposition": f'attachment; filename="schedule_{group_slug}.ics"',
-                "Cache-Control": "public, max-age=300"  # Cache for 5 minutes
-            }
+# --- Подписка на календарь ---
+
+@app.get("/cal/{group_slug}.ics", response_class=PlainTextResponse)
+def get_calendar(group_slug: str, db: Session = Depends(get_db)):
+    """Один общий .ics на группу — все подписчики получают одну и ту же ссылку."""
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group or not group.ics_text:
+        raise HTTPException(
+            status_code=404,
+            detail="Календарь ещё не сгенерирован. Нажмите «Обновить расписание».",
         )
+    return PlainTextResponse(
+        content=group.ics_text,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="schedule_{group_slug}.ics"'},
+    )
 
 
-@app.post("/api/groups/{group_slug}/refresh", response_model=RefreshStatus)
-async def refresh_schedule(group_slug: str, background_tasks: BackgroundTasks):
-    """
-    Trigger schedule refresh for a group.
-    
-    Rules:
-    - If refresh is already in progress, return "in_progress"
-    - If last refresh was recently, return "too_early"
-    - Otherwise, start background refresh
-    """
-    async with async_session() as session:
-        group = await get_or_create_group(session, group_slug)
-        
-        now = datetime.utcnow()
-        
-        # Check if already fetching
-        if group.fetch_status == "fetching":
-            return RefreshStatus(
-                status="in_progress",
-                message="Refresh is already in progress",
-                last_updated_at=group.last_fetched_at,
-                last_error=group.last_error
-            )
-        
-        # Check cooldown
-        if group.last_refresh_attempt:
-            time_since_last = (now - group.last_refresh_attempt).total_seconds()
-            if time_since_last < REFRESH_COOLDOWN_SECONDS:
-                remaining = int(REFRESH_COOLDOWN_SECONDS - time_since_last)
-                return RefreshStatus(
-                    status="too_early",
-                    message=f"Please wait {remaining} seconds before refreshing again",
-                    last_updated_at=group.last_fetched_at,
-                    last_error=group.last_error
-                )
-        
-        # Mark as fetching and start background task
-        group.fetch_status = "fetching"
-        group.last_refresh_attempt = now
-        await session.commit()
-        
-        # Start background refresh
-        background_tasks.add_task(refresh_group_schedule, session, group)
-        
-        return RefreshStatus(
-            status="started",
-            message="Refresh started",
-            last_updated_at=group.last_fetched_at,
-            last_error=group.last_error
-        )
+# --- API ---
+
+@app.get("/api/groups/{group_slug}/status")
+def group_status(group_slug: str, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.slug == group_slug).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Группа не найдена")
+    return group.to_dict()
 
 
-@app.get("/api/groups/{group_slug}/status", response_model=GroupStatus)
-async def get_group_status(group_slug: str):
-    """Get current status of a group's schedule."""
-    async with async_session() as session:
-        from sqlalchemy import select
-        result = await session.execute(select(Group).where(Group.slug == group_slug))
-        group = result.scalar_one_or_none()
-        
-        if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
-        
-        return GroupStatus(
-            slug=group.slug,
-            title=group.title or group.slug,
-            status=group.fetch_status,
-            last_updated_at=group.last_fetched_at,
-            last_error=group.last_error,
-            has_schedule=group.ics_text is not None
-        )
+@app.post("/api/groups/{group_slug}/refresh")
+def refresh_schedule(group_slug: str, db: Session = Depends(get_db)):
+    group = get_or_create_group(db, group_slug)
+    return refresh_group(db, group)
 
 
 @app.post("/internal/refresh-all")
-async def refresh_all_groups(request: Request, background_tasks: BackgroundTasks):
-    """
-    Internal endpoint to refresh all active groups.
-    Protected by secret token header.
-    
-    Usage: POST /internal/refresh-all with header X-Secret-Token: <token>
-    """
-    # Check secret token
-    token = request.headers.get("X-Secret-Token", "")
+def refresh_all(request: Request, db: Session = Depends(get_db)):
+    """Обновление всех известных групп для внешнего cron (GitHub Actions и т.п.)."""
+    token = request.headers.get("X-Secret-Token")
     if token != SECRET_TOKEN:
-        raise HTTPException(status_code=403, detail="Invalid or missing secret token")
-    
-    async with async_session() as session:
-        from sqlalchemy import select
-        result = await session.execute(select(Group))
-        groups = result.scalars().all()
-        
-        refreshed_count = 0
-        for group in groups:
-            now = datetime.utcnow()
-            
-            # Skip if currently fetching
-            if group.fetch_status == "fetching":
-                continue
-            
-            # Skip if within cooldown (shorter cooldown for auto-refresh)
-            auto_cooldown = 3600  # 1 hour for auto-refresh
-            if group.last_refresh_attempt:
-                time_since_last = (now - group.last_refresh_attempt).total_seconds()
-                if time_since_last < auto_cooldown:
-                    continue
-            
-            # Mark and start refresh
-            group.fetch_status = "fetching"
-            group.last_refresh_attempt = now
-            refreshed_count += 1
-            
-            # Start background refresh
-            background_tasks.add_task(refresh_group_schedule, session, group)
-        
-        return {
-            "status": "ok",
-            "message": f"Started refresh for {refreshed_count} groups",
-            "groups_queued": refreshed_count
-        }
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    groups = db.query(Group).all()
+    results = []
+    for group in groups:
+        res = refresh_group(db, group)
+        results.append({"slug": group.slug, **res})
+    return {"refreshed": len(groups), "results": results}

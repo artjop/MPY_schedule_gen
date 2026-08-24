@@ -1,0 +1,793 @@
+/* ==========================================================================
+   Schedule Service — дизайн на основе shadcn/ui v4 (папка «дизайн»)
+   Токены: apps/v4/app/globals.css (дефолтная нейтральная тема, oklch).
+   ========================================================================== */
+
+/* ---------- Токены (светлая тема) ---------- */
+:root {
+    --radius: 0.625rem;
+
+    --background: oklch(1 0 0);
+    --foreground: oklch(0% 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0% 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0% 0 0);
+    --primary: oklch(0% 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.97 0.01 17);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --surface: oklch(0.98 0 0);
+    --surface-foreground: var(--foreground);
+
+    /* Статусные (для бейджей и алертов) */
+    --success: oklch(0.627 0.194 149.214);
+    --success-soft: oklch(0.723 0.219 149.579 / 0.14);
+    --info: oklch(0.488 0.243 264.376);
+    --info-soft: oklch(0.623 0.214 259.815 / 0.14);
+    --error-soft: oklch(0.637 0.237 25.331 / 0.12);
+
+    /* Скругления (как в shadcn: --radius: 0.625rem) */
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+
+    /* Тени */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* ---------- Тёмная тема (.dark на <html>) ---------- */
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.371 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.58 0.22 27);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --surface: oklch(0.2 0 0);
+    --surface-foreground: oklch(0.708 0 0);
+
+    --success: oklch(0.723 0.219 149.579);
+    --success-soft: oklch(0.723 0.219 149.579 / 0.15);
+    --info: oklch(0.623 0.214 259.815);
+    --info-soft: oklch(0.623 0.214 259.815 / 0.15);
+    --error-soft: oklch(0.637 0.237 25.331 / 0.15);
+}
+
+/* ---------- База ---------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+}
+
+html {
+    scroll-padding-top: 68px;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 16px;
+    line-height: 1.5;
+    font-synthesis-weight: none;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+::selection {
+    background: var(--foreground);
+    color: var(--background);
+}
+
+/* ---------- Контейнер / раскладка ---------- */
+.container {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.main {
+    flex: 1;
+    padding-top: 48px;
+    padding-bottom: 64px;
+}
+
+/* ---------- Шапка ---------- */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in oklab, var(--background) 80%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+}
+
+.header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    background: var(--foreground);
+    color: var(--background);
+}
+
+.brand-mark svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ---------- Кнопка переключения темы ---------- */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--foreground);
+    transition: background-color 100ms linear;
+}
+
+.icon-btn:hover {
+    background: var(--accent);
+}
+
+.icon-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* ---------- Типографика ---------- */
+.h1,
+h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--foreground);
+}
+
+.h2,
+h2 {
+    margin: 0 0 12px;
+    font-size: 22px;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.h3,
+h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.display {
+    margin: 0 0 16px;
+    font-size: 36px;
+    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.text-sm { font-size: 14px; line-height: 20px; }
+.text-md { font-size: 16px; line-height: 24px; }
+.text-lg { font-size: 18px; line-height: 28px; }
+.text-center { text-align: center; }
+.text-secondary { color: var(--secondary-foreground); }
+.text-muted { color: var(--muted-foreground); }
+.text-destructive { color: var(--destructive); }
+
+/* ---------- Карточки (shadcn: card) ---------- */
+.card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+}
+
+.card-padded {
+    padding: 32px;
+}
+
+.card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.card-section {
+    padding-top: 24px;
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+/* ---------- Кнопки (shadcn: button) ---------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    height: 36px;
+    padding: 0 16px;
+    transition: background-color 100ms linear, border-color 100ms linear, color 100ms linear;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--ring);
+}
+
+.btn-lg {
+    height: 44px;
+    padding: 0 24px;
+    font-size: 15px;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: var(--shadow-xs);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--primary) 90%, transparent);
+}
+
+.btn-secondary {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    box-shadow: var(--shadow-xs);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--secondary) 80%, transparent);
+}
+
+.btn-outline {
+    background: var(--background);
+    color: var(--foreground);
+    border-color: var(--input);
+    box-shadow: var(--shadow-xs);
+}
+
+.btn-outline:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--foreground);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+/* ---------- Поля ввода (shadcn: input) ---------- */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+}
+
+.field-label {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    color: var(--foreground);
+}
+
+.input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--foreground);
+    background: transparent;
+    border: 1px solid var(--input);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    transition: box-shadow 100ms linear, border-color 100ms linear;
+}
+
+.input::placeholder {
+    color: var(--muted-foreground);
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 1px var(--ring);
+}
+
+.input:read-only {
+    box-shadow: none;
+}
+
+/* ---------- Бейджи (shadcn: badge) ---------- */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 500;
+    padding: 1px 10px;
+    background: var(--background);
+    color: var(--foreground);
+}
+
+.badge-secondary {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    border-color: transparent;
+}
+
+.badge-neutral {
+    background: var(--muted);
+    color: var(--muted-foreground);
+    border-color: transparent;
+}
+
+.badge-success {
+    background: var(--success-soft);
+    color: var(--success);
+    border-color: transparent;
+}
+
+.badge-error {
+    background: var(--error-soft);
+    color: var(--destructive);
+    border-color: transparent;
+}
+
+.badge-info {
+    background: var(--info-soft);
+    color: var(--info);
+    border-color: transparent;
+}
+
+/* ---------- Featured icon ---------- */
+.featured-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+}
+
+.featured-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ---------- Чипы популярных групп ---------- */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--input);
+    box-shadow: var(--shadow-xs);
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 100ms linear;
+}
+
+.chip:hover {
+    background: var(--accent);
+}
+
+/* ---------- Герой (главная) ---------- */
+.hero {
+    text-align: center;
+    padding: 32px 0 48px;
+}
+
+.hero .badge {
+    margin-bottom: 20px;
+}
+
+.hero-sub {
+    margin: 0 auto 32px;
+    max-width: 520px;
+    font-size: 17px;
+    line-height: 27px;
+    color: var(--muted-foreground);
+}
+
+.hero-form {
+    max-width: 420px;
+    margin: 0 auto 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.popular-label {
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+
+.popular-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* ---------- Фичи (главная) ---------- */
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 640px) {
+    .features {
+        grid-template-columns: 1fr;
+    }
+}
+
+.feature-card {
+    padding: 24px;
+}
+
+.feature-card h3 {
+    margin-bottom: 4px;
+}
+
+.feature-card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--muted-foreground);
+}
+
+/* ---------- Прогресс обновления (shadcn: progress) ---------- */
+.progress {
+    margin-top: 20px;
+}
+
+.progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--muted-foreground);
+    margin-bottom: 8px;
+}
+
+.progress-track {
+    width: 100%;
+    height: 8px;
+    background: var(--secondary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 100%;
+    background: var(--primary);
+    border-radius: var(--radius-full);
+    animation: progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ---------- Алерты ---------- */
+.alert {
+    margin-top: 20px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    line-height: 20px;
+    border: 1px solid var(--border);
+}
+
+.alert-error {
+    background: var(--error-soft);
+    color: var(--destructive);
+    border-color: transparent;
+}
+
+/* ---------- Ссылка для подписки ---------- */
+.copy-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.copy-row .input {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+}
+
+/* ---------- QR ---------- */
+.qr-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.qr-box {
+    padding: 10px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    display: inline-flex;
+}
+
+.qr-box img,
+.qr-box canvas {
+    display: block;
+    border-radius: var(--radius-sm);
+}
+
+/* ---------- Предпросмотр JSON ---------- */
+.preview-card {
+    margin-top: 24px;
+    padding: 24px;
+    overflow: hidden;
+}
+
+.preview-code {
+    margin: 0 0 12px;
+    padding: 16px;
+    background: var(--surface);
+    color: var(--surface-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 18px;
+    overflow-x: auto;
+    max-height: 240px;
+}
+
+/* ---------- Таблица предпросмотра (shadcn: table) ---------- */
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 20px;
+    min-width: 640px;
+}
+
+.table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--foreground);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table tbody tr:hover {
+    background: var(--accent);
+}
+
+.table .td-subject {
+    font-weight: 500;
+}
+
+.table .td-day {
+    white-space: nowrap;
+    font-weight: 500;
+    color: var(--secondary-foreground);
+}
+
+.table .td-muted {
+    color: var(--muted-foreground);
+    white-space: nowrap;
+}
+
+/* ---------- Подвал ---------- */
+.footer {
+    border-top: 1px solid var(--border);
+    background: var(--background);
+    padding: 24px 0;
+    text-align: center;
+    font-size: 14px;
+}
+
+.footer p {
+    margin: 4px 0;
+    color: var(--muted-foreground);
+}
+
+/* ---------- Тост (в стиле sonner) ---------- */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: min(90vw, 360px);
+    padding: 10px 14px;
+    background: var(--foreground);
+    color: var(--background);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    font-size: 14px;
+    line-height: 20px;
+    transition: transform 0.3s, opacity 0.3s;
+    opacity: 0;
+    transform: translateY(80px);
+    pointer-events: none;
+}
+
+.toast svg {
+    width: 18px;
+    height: 18px;
+    color: var(--success);
+    flex-shrink: 0;
+}
+
+/* JS (group.html) переключает эти классы — оставляем как есть */
+.opacity-0 { opacity: 0; }
+.translate-y-20 { transform: translateY(80px); }
+
+/* ---------- Утилиты ---------- */
+.hidden { display: none !important; }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.mt-1 { margin-top: 4px; }
+.mt-4 { margin-top: 16px; }
+.mb-1 { margin-bottom: 4px; }
+.mb-4 { margin-bottom: 16px; }

@@ -73,7 +73,7 @@ curl -X POST http://localhost:8000/internal/refresh-all \
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `SECRET_TOKEN` | `change_this_secret_token` | Токен для защиты служебных endpoints |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/schedule.db` | URL подключения к БД |
+| `DATABASE_URL` | `sqlite:///./schedule.db` | URL подключения к БД |
 | `REFRESH_COOLDOWN_SECONDS` | `300` | Задержка между ручными обновлениями (сек) |
 
 ## Структура проекта

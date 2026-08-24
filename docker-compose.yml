@@ -6,9 +6,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/schedule.db
+      - DATABASE_URL=sqlite:///./data/schedule.db
       - SECRET_TOKEN=${SECRET_TOKEN:-change_this_secret_token}
-      - REFRESH_COOLDOWN_SECONDS=300
+      - REFRESH_COOLDOWN_SECONDS=60
     volumes:
       - ./data:/app/data
     restart: unless-stopped
@@ -43,7 +43,7 @@ services:
 #    environment:
 #      - DATABASE_URL=postgresql+asyncpg://schedule_user:${POSTGRES_PASSWORD:-changeme}@db:5432/schedule
 #      - SECRET_TOKEN=${SECRET_TOKEN:-change_this_secret_token}
-#      - REFRESH_COOLDOWN_SECONDS=300
+#      - REFRESH_COOLDOWN_SECONDS=60
 #    depends_on:
 #      db:
 #        condition: service_healthy
