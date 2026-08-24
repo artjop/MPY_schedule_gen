@@ -14,6 +14,7 @@ Schedule Service — FastAPI приложение.
 бесплатно хостится на Render / Railway / любой VPS.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -37,12 +38,67 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./schedule.db")
 SECRET_TOKEN = os.getenv("SECRET_TOKEN", "change_this_secret_token")
 REFRESH_COOLDOWN_SECONDS = int(os.getenv("REFRESH_COOLDOWN_SECONDS", "60"))
+# Период автообновления всех групп (по умолчанию — раз в неделю)
+REFRESH_INTERVAL_SECONDS = int(os.getenv("REFRESH_INTERVAL_SECONDS", str(7 * 24 * 3600)))
+
+# Группы, которые сервис «сажает» при старте (чтобы календари существовали
+# даже после того, как Render стёр базу при перезапуске)
+POPULAR_GROUPS = ["242-621", "242-521", "242-421", "242-321"]
 
 os.makedirs("static", exist_ok=True)
 os.makedirs("templates", exist_ok=True)
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def seed_popular_groups() -> None:
+    """Создаёт записи популярных групп, если их ещё нет."""
+    db = SessionLocal()
+    try:
+        for slug in POPULAR_GROUPS:
+            get_or_create_group(db, slug)
+    finally:
+        db.close()
+
+
+def refresh_missing_schedules() -> None:
+    """Обновляет группы, у которых ещё нет календаря (после старта/рестарта)."""
+    db = SessionLocal()
+    try:
+        for group in db.query(Group).all():
+            if group.ics_text is None:
+                refresh_group(db, group)
+    finally:
+        db.close()
+
+
+def refresh_all_schedules() -> None:
+    """Обновляет расписание всех групп (еженедельный таск)."""
+    db = SessionLocal()
+    try:
+        for group in db.query(Group).all():
+            refresh_group(db, group)
+    finally:
+        db.close()
+
+
+async def scheduler_loop() -> None:
+    """Фоновая задача: посев групп + автообновление раз в REFRESH_INTERVAL_SECONDS."""
+    try:
+        await asyncio.to_thread(seed_popular_groups)
+        await asyncio.to_thread(refresh_missing_schedules)
+        logger.info("[SCHED] Стартовое заполнение групп выполнено.")
+    except Exception as e:
+        logger.error(f"[SCHED] Стартовое заполнение: {e}", exc_info=True)
+
+    while True:
+        await asyncio.sleep(REFRESH_INTERVAL_SECONDS)
+        try:
+            await asyncio.to_thread(refresh_all_schedules)
+            logger.info("[SCHED] Еженедельное обновление всех групп выполнено.")
+        except Exception as e:
+            logger.error(f"[SCHED] Еженедельное обновление: {e}", exc_info=True)
 
 
 @asynccontextmanager
@@ -58,7 +114,10 @@ async def lifespan(app: FastAPI):
         ))
         conn.execute(text("UPDATE groups SET last_refresh_attempt = NULL"))
     logger.info("База данных готова.")
+    # Фоновая задача автообновления (стартует, не блокируя приложение)
+    scheduler_task = asyncio.create_task(scheduler_loop())
     yield
+    scheduler_task.cancel()
 
 
 app = FastAPI(lifespan=lifespan, title="Schedule Service")
