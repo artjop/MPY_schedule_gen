@@ -1,0 +1,21 @@
+# Локальные и служебные файлы — не копируем в Docker-образ
+.git
+.gitignore
+venv
+__pycache__
+*.pyc
+.DS_Store
+.env
+
+# Локальные артефакты и тестовые данные
+*.db
+*.sqlite3
+*.ics
+*.ipynb
+timetable.json
+test_output.ics
+test_fixed.ics
+MPY_calendar.ics
+
+# Дизайн-системы (shadcn/ui и Untitled UI) — не нужны в рантайме
+дизайн
