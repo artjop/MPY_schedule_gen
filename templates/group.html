@@ -52,7 +52,7 @@
                     <h1 class="h1">Группа {{ group.title }}</h1>
                     <p class="text-muted">
                         {% if group.last_fetched_at %}
-                            Обновлено: {{ group.last_fetched_at.strftime('%d.%m.%Y %H:%M') }}
+                            Обновлено: {{ group.last_fetched_at | moscow_time }}
                         {% else %}
                             Расписание еще не загружено
                         {% endif %}

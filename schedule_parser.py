@@ -4,7 +4,7 @@ Reuses the existing code from MPY_timetable.ipynb notebook.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -186,7 +186,7 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
     days_mapping = {
         'ПН': 0, 'ВТ': 1, 'СР': 2, 'ЧТ': 3, 'ПТ': 4, 'СБ': 5, 'ВС': 6
     }
-    timezone = pytz.timezone("Europe/Moscow")
+    tz = pytz.timezone("Europe/Moscow")
     
     if df.empty:
         # Return empty calendar with proper header
@@ -207,8 +207,8 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
                     start_datetime = datetime.combine(current_date, start_time)
                     end_datetime = datetime.combine(current_date, end_time)
 
-                    start_datetime = timezone.localize(start_datetime)
-                    end_datetime = timezone.localize(end_datetime)
+                    start_datetime = tz.localize(start_datetime)
+                    end_datetime = tz.localize(end_datetime)
                     
                     # Build summary: Subject • Location • Teacher
                     summary_parts = []
@@ -224,13 +224,15 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
                     # Generate stable UID (based on the actual event date)
                     uid = generate_uid(row, group_slug, current_date.strftime('%Y-%m-%d'))
                     
+                    # DTSTAMP по RFC 5545 должен быть в UTC (с суффиксом Z)
                     calendar.events.append(
                         Event(
                             summary=summary,
                             dtstart=start_datetime,
                             dtend=end_datetime,
                             location=str(row.get('location', '')),
-                            uid=uid
+                            uid=uid,
+                            dtstamp=datetime.now(timezone.utc),
                         )
                     )
                 current_date += timedelta(days=1)

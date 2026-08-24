@@ -22,6 +22,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional
 
+import pytz
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -123,6 +125,23 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, title="Schedule Service")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# --- Часовой пояс ---
+# Расписание — московское, поэтому время для отображения приводим к Europe/Moscow.
+# В БД храним UTC (datetime.utcnow), а форматируем уже в Москве.
+MOSCOW_TZ = pytz.timezone("Europe/Moscow")
+
+
+def format_moscow_time(dt: Optional[datetime]) -> str:
+    """Форматирует время из БД (UTC) в московское для показа на странице."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(MOSCOW_TZ).strftime("%d.%m.%Y %H:%M")
+
+
+templates.env.filters["moscow_time"] = format_moscow_time
 
 
 def get_db():
