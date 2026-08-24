@@ -210,12 +210,18 @@ def ical_gen(df: pd.DataFrame, group_slug: str, group_title: str = "") -> str:
                     start_datetime = tz.localize(start_datetime)
                     end_datetime = tz.localize(end_datetime)
                     
-                    # Build summary: Subject • Location • Teacher
+                    # Build summary: Subject • Type • Teacher.
+                    # Тип занятия важен (особенно электронный формат «эор»),
+                    # а локация уже есть в отдельном поле LOCATION — в заголовок её не дублируем.
                     summary_parts = []
                     if row.get('sbj'):
                         summary_parts.append(str(row['sbj']))
-                    if row.get('location'):
-                        summary_parts.append(str(row['location']))
+                    lesson_type = str(row.get('type') or '').strip()
+                    if lesson_type:
+                        # "Лекция эор" -> "Лекция (эор)" — маркер электронного формата в скобках
+                        if lesson_type.endswith(' эор'):
+                            lesson_type = f"{lesson_type[:-4].strip()} (эор)"
+                        summary_parts.append(lesson_type)
                     if row.get('teacher'):
                         summary_parts.append(str(row['teacher']))
                     
